@@ -19,9 +19,13 @@ def create_comment(
         content=data.content,
     )
 
-    db.add(comment)
-    db.commit()
-    db.refresh(comment)
+    try:
+        db.add(comment)
+        db.commit()
+        db.refresh(comment)
+    except Exception:
+        db.rollback()
+        raise
 
     return comment
 

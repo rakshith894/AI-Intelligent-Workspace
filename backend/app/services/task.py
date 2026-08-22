@@ -200,6 +200,20 @@ def update_task(
                 ),
             )
 
+            if task.assignee_id is not None:
+                create_notification(
+                    db=db,
+                    user_id=str(task.assignee_id),
+                    workspace_id=str(task.workspace_id),
+                    task_id=str(task.id),
+                    notification_type="status_changed",
+                    title="Task status changed",
+                    message=(
+                        f"Task '{task.title}' was moved "
+                        f"from '{old_status}' to '{data.status}'"
+                    ),
+                )
+
         record_activity(
             db=db,
             task_id=str(task.id),

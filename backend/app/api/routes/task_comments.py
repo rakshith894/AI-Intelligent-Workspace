@@ -18,7 +18,6 @@ from app.services.task_activity import get_activities
 
 router = APIRouter(
     prefix="/api/v1/workspaces",
-    tags=["Task Comments"],
 )
 
 
@@ -35,9 +34,10 @@ def serialize_comment(comment: TaskComment) -> CommentResponse:
 
 
 @router.post(
-    "/{workspace_id}/projects/{project_id}/tasks/{task_id}/comments",
+    "/{workspace_id}/projects/{project_id}/tasks/{task_id}/task-comments",
     response_model=CommentResponse,
     status_code=status.HTTP_201_CREATED,
+    tags=["Task Comments"],
 )
 def add_task_comment(
     workspace_id: UUID,
@@ -75,8 +75,9 @@ def add_task_comment(
 
 
 @router.get(
-    "/{workspace_id}/projects/{project_id}/tasks/{task_id}/comments",
+    "/{workspace_id}/projects/{project_id}/tasks/{task_id}/task-comments",
     response_model=list[CommentResponse],
+    tags=["Task Comments"],
 )
 def list_task_comments(
     workspace_id: UUID,
@@ -125,6 +126,7 @@ def serialize_activity(
 @router.get(
     "/{workspace_id}/projects/{project_id}/tasks/{task_id}/activity",
     response_model=list[ActivityResponse],
+    tags=["Task Activity"],
 )
 def list_task_activity(
     workspace_id: UUID,

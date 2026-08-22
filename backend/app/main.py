@@ -19,6 +19,7 @@ from app.api.routes.workload import router as workload_router
 from app.api.routes.notifications import (
     router as notification_router,
 )
+from app.api.routes.comments import router as comments_router
 
 app = FastAPI(
     title=settings.app_name,
@@ -39,6 +40,7 @@ app.include_router(accept_router)
 app.include_router(project_router)
 app.include_router(task_router)
 app.include_router(notification_router)
+app.include_router(comments_router)
 @app.get("/")
 async def root():
     return {

@@ -5,9 +5,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.user import User
+from app.models.workspace import Workspace
 from app.models.workspace_invitation import WorkspaceInvitation
-from app.models.workspace_membership import WorkspaceMembership
+from app.models.workspace_membership import (
+    WorkspaceMembership,
+    WorkspaceRole,
+)
 from app.schemas.invitation import InvitationCreate
+
+from app.services.notification import create_notification
 
 
 def create_invitation(
@@ -16,19 +22,20 @@ def create_invitation(
     email_data: InvitationCreate,
     created_by: str,
 ) -> WorkspaceInvitation:
+    email = str(email_data.email).lower()
 
     # Check whether the user is already a member
-    existing_user = db.scalar(
+    user = db.scalar(
         select(User).where(
-            User.email == email_data.email
+            User.email == email
         )
     )
 
-    if existing_user:
+    if user:
         existing_membership = db.scalar(
             select(WorkspaceMembership).where(
                 WorkspaceMembership.workspace_id == workspace_id,
-                WorkspaceMembership.user_id == existing_user.id,
+                WorkspaceMembership.user_id == user.id,
             )
         )
 
@@ -41,7 +48,7 @@ def create_invitation(
     existing_invitation = db.scalar(
         select(WorkspaceInvitation).where(
             WorkspaceInvitation.workspace_id == workspace_id,
-            WorkspaceInvitation.email == email_data.email,
+            WorkspaceInvitation.email == email,
             WorkspaceInvitation.accepted_at.is_(None),
         )
     )
@@ -57,23 +64,38 @@ def create_invitation(
 
     invitation = WorkspaceInvitation(
         workspace_id=workspace_id,
-        email=email_data.email,
+        email=email,
         token=token,
         expires_at=expires_at,
         created_by=created_by,
     )
 
     db.add(invitation)
+
+    if user:
+        workspace = db.scalar(
+            select(Workspace).where(
+                Workspace.id == workspace_id
+            )
+        )
+
+        if workspace:
+            create_notification(
+                db=db,
+                user_id=str(user.id),
+                workspace_id=str(workspace_id),
+                notification_type="workspace_invitation",
+                title="Workspace invitation",
+                message=(
+                    f"You have been invited to join "
+                    f"workspace '{workspace.name}'"
+                ),
+            )
+
     db.commit()
     db.refresh(invitation)
 
     return invitation
-from datetime import datetime, timezone
-
-from app.models.workspace_membership import (
-    WorkspaceMembership,
-    WorkspaceRole,
-)
 
 
 def accept_invitation(
