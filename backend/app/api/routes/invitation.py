@@ -93,14 +93,14 @@ def invite_user(
         token=invitation.token,
         expires_at=invitation.expires_at,
     )
-from app.schemas.invitation import (
-    InvitationAcceptResponse,
-)
-from app.services.invitation import (
-    accept_invitation,
-)
-@router.post(
-    "/invitations/{token}/accept",
+
+
+from app.schemas.invitation import InvitationAcceptResponse
+from app.services.invitation import accept_invitation
+
+
+@accept_router.post(
+    "/{token}/accept",
     response_model=InvitationAcceptResponse,
 )
 def accept_workspace_invitation(
