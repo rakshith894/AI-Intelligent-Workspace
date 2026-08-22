@@ -44,3 +44,13 @@ class TaskResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     labels: list[TaskLabelInfo] = []
+
+
+class TaskListResponse(BaseModel):
+    items: list[TaskResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+    

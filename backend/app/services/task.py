@@ -7,9 +7,14 @@ from app.schemas.task import TaskCreate, TaskUpdate
 from app.models.user import User
 from app.models.workspace_membership import WorkspaceMembership
 from app.services.task_activity import record_activity
+from app.services.notification import create_notification
 from app.services.task_workflow import (
     validate_status_transition,
 )
+from sqlalchemy import func, or_, select
+
+from app.models.label import Label
+from app.models.task_label import TaskLabel
 
 VALID_STATUSES = {
     "todo",
@@ -62,6 +67,16 @@ def create_task(
     try:
         db.add(task)
         db.flush()
+        if assignee_id is not None:
+            create_notification(
+                db=db,
+                user_id=str(assignee_id),
+                workspace_id=str(task.workspace_id),
+                task_id=str(task.id),
+                notification_type="task_assigned",
+                title="New task assigned",
+                message=f"You were assigned task '{task.title}'",
+            )
         record_activity(
             db=db,
             task_id=str(task.id),
@@ -144,7 +159,7 @@ def update_task(
         task.description = data.description
 
     if "assignee_id" in data.model_fields_set:
-        task.assignee_id = validate_assignee(
+        validate_assignee(
             db,
             str(task.workspace_id),
             data.assignee_id,
@@ -154,6 +169,25 @@ def update_task(
         task.due_date = data.due_date
 
     try:
+        if data.assignee_id is not None:
+            old_assignee_id = task.assignee_id
+
+            task.assignee_id = data.assignee_id
+
+            if (
+                old_assignee_id != data.assignee_id
+                and data.assignee_id is not None
+            ):
+                create_notification(
+                    db=db,
+                    user_id=str(data.assignee_id),
+                    workspace_id=str(task.workspace_id),
+                    task_id=str(task.id),
+                    notification_type="task_assigned",
+                    title="New task assigned",
+                    message=f"You were assigned task '{task.title}'",
+                )
+
         if (
             "status" in data.model_fields_set
             and data.status is not None
@@ -232,3 +266,101 @@ def validate_assignee(
         )
 
     return assignee_id
+def search_tasks(
+    db: Session,
+    workspace_id: str,
+    project_id: str,
+    search: str | None = None,
+    status: str | None = None,
+    priority: str | None = None,
+    assignee_id: str | None = None,
+    label_id: str | None = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    page: int = 1,
+    page_size: int = 20,
+):
+    conditions = [
+        Task.workspace_id == workspace_id,
+        Task.project_id == project_id,
+    ]
+
+    # Search
+    if search:
+        search_pattern = f"%{search}%"
+
+        conditions.append(
+            or_(
+                Task.title.ilike(search_pattern),
+                Task.description.ilike(search_pattern),
+            )
+        )
+
+    # Status
+    if status:
+        conditions.append(
+            Task.status == status
+        )
+
+    # Priority
+    if priority:
+        conditions.append(
+            Task.priority == priority
+        )
+
+    # Assignee
+    if assignee_id:
+        conditions.append(
+            Task.assignee_id == assignee_id
+        )
+
+    # Label
+    if label_id:
+        conditions.append(
+            Task.id.in_(
+                select(TaskLabel.task_id)
+                .where(
+                    TaskLabel.label_id == label_id
+                )
+            )
+        )
+
+    # Total count
+    total = db.scalar(
+        select(func.count())
+        .select_from(Task)
+        .where(*conditions)
+    ) or 0
+
+    # Sorting
+    sort_columns = {
+        "created_at": Task.created_at,
+        "updated_at": Task.updated_at,
+        "title": Task.title,
+        "priority": Task.priority,
+        "due_date": Task.due_date,
+        "status": Task.status,
+    }
+
+    sort_column = sort_columns.get(
+        sort_by,
+        Task.created_at,
+    )
+
+    if sort_order.lower() == "asc":
+        order = sort_column.asc()
+    else:
+        order = sort_column.desc()
+
+    # Pagination
+    offset = (page - 1) * page_size
+
+    tasks = db.scalars(
+        select(Task)
+        .where(*conditions)
+        .order_by(order)
+        .offset(offset)
+        .limit(page_size)
+    ).all()
+
+    return tasks, total

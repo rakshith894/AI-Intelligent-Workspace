@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -13,6 +13,7 @@ from app.models.workspace_membership import WorkspaceMembership
 from app.schemas.task import (
     TaskCreate,
     TaskLabelInfo,
+    TaskListResponse,
     TaskResponse,
     TaskUpdate,
 )
@@ -20,12 +21,12 @@ from app.services.task import (
     create_task,
     delete_task,
     get_task,
-    get_tasks,
+    search_tasks,
     update_task,
 )
+
 from app.models.label import Label
 from app.models.task_label import TaskLabel
-
 
 router = APIRouter(
     prefix="/api/v1/workspaces",
@@ -142,11 +143,20 @@ def create_project_task(
 
 @router.get(
     "/{workspace_id}/projects/{project_id}/tasks",
-    response_model=list[TaskResponse],
+    response_model=TaskListResponse,
 )
-def list_project_tasks(
+def search_project_tasks(
     workspace_id: UUID,
     project_id: UUID,
+    search: str | None = Query(default=None, max_length=100),
+    status: str | None = Query(default=None),
+    priority: str | None = Query(default=None),
+    assignee_id: UUID | None = Query(default=None),
+    label_id: UUID | None = Query(default=None),
+    sort_by: str = Query(default="created_at"),
+    sort_order: str = Query(default="desc"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
     membership: WorkspaceMembership = Depends(
         require_workspace_role("owner", "admin", "member")
@@ -158,16 +168,45 @@ def list_project_tasks(
         project_id,
     )
 
-    tasks = get_tasks(
-        db,
-        str(workspace_id),
-        str(project_id),
+    tasks, total = search_tasks(
+        db=db,
+        workspace_id=str(workspace_id),
+        project_id=str(project_id),
+        search=search,
+        status=status,
+        priority=priority,
+        assignee_id=(
+            str(assignee_id)
+            if assignee_id
+            else None
+        ),
+        label_id=(
+            str(label_id)
+            if label_id
+            else None
+        ),
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        page_size=page_size,
     )
 
-    return [
-        serialize_task(task, db)
-        for task in tasks
-    ]
+    total_pages = (
+        (total + page_size - 1) // page_size
+        if total
+        else 0
+    )
+
+    return TaskListResponse(
+        items=[
+            serialize_task(task, db)
+            for task in tasks
+        ],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 
 @router.get(

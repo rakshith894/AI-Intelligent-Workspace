@@ -11,6 +11,7 @@ from app.models.task_comment import TaskComment
 from app.models.task_activity import TaskActivity
 from app.models.label import Label
 from app.models.task_label import TaskLabel
+from app.models.notification import Notification
 
 __all__ = [
     "User",
@@ -23,5 +24,6 @@ __all__ = [
     "TaskComment",
     "TaskActivity",
     "Label",
-    "TaskLabel"
+    "TaskLabel",
+    "Notification"
 ]
