@@ -2,6 +2,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.workspace import Workspace
+from app.models.workspace_membership import (
+    WorkspaceMembership,
+    WorkspaceRole,
+)
 from app.schemas.workspace import WorkspaceCreate
 from app.utils.slug import create_slug
 
@@ -32,6 +36,16 @@ def create_workspace(
     )
 
     db.add(workspace)
+    db.flush()
+
+    membership = WorkspaceMembership(
+        user_id=owner_id,
+        workspace_id=workspace.id,
+        role=WorkspaceRole.OWNER.value,
+    )
+
+    db.add(membership)
+
     db.commit()
     db.refresh(workspace)
 
