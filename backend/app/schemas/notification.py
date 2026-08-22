@@ -13,3 +13,6 @@ class NotificationResponse(BaseModel):
     message: str
     is_read: bool
     created_at: datetime
+
+class UnreadNotificationCount(BaseModel):
+    count: int

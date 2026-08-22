@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -11,8 +11,6 @@ from app.services.notification import create_notification
 from app.services.task_workflow import (
     validate_status_transition,
 )
-from sqlalchemy import func, or_, select
-
 from app.models.label import Label
 from app.models.task_label import TaskLabel
 
@@ -134,6 +132,7 @@ def update_task(
         raise ValueError("At least one field is required to update a task")
 
     old_status = task.status
+    old_assignee_id = task.assignee_id
 
     if "status" in data.model_fields_set and data.status is not None:
         if data.status not in VALID_STATUSES:
@@ -170,14 +169,9 @@ def update_task(
 
     try:
         if data.assignee_id is not None:
-            old_assignee_id = task.assignee_id
-
             task.assignee_id = data.assignee_id
 
-            if (
-                old_assignee_id != data.assignee_id
-                and data.assignee_id is not None
-            ):
+            if old_assignee_id != data.assignee_id:
                 create_notification(
                     db=db,
                     user_id=str(data.assignee_id),

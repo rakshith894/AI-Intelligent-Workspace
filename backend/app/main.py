@@ -6,7 +6,6 @@ from app.api.routes.me import router as me_router
 from app.api.routes.workspace import router as workspace_router
 from app.core.config import settings
 from app.api.routes.members import router as members_router
-from app.api.routes.invitation import router as invitation_router
 from app.api.routes.invitation import (
     router as invitation_router,
     accept_router,

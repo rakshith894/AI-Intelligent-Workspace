@@ -1,10 +1,9 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.notification import Notification
-
 
 def create_notification(
     db: Session,
@@ -74,3 +73,16 @@ def mark_notification_as_read(
     db.refresh(notification)
 
     return notification
+def get_unread_notification_count(
+    db: Session,
+    user_id: str,
+):
+    count = db.scalar(
+        select(func.count(Notification.id))
+        .where(
+            Notification.user_id == UUID(user_id),
+            Notification.is_read.is_(False),
+        )
+    )
+
+    return count or 0

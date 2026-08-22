@@ -5,10 +5,14 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user_id
 from app.core.database import get_db
-from app.schemas.notification import NotificationResponse
+from app.schemas.notification import (
+    NotificationResponse,
+    UnreadNotificationCount,
+)
 from app.services.notification import (
     get_user_notifications,
     mark_notification_as_read,
+    get_unread_notification_count,
 )
 
 
@@ -59,6 +63,26 @@ def list_notifications(
         serialize_notification(notification)
         for notification in notifications
     ]
+
+
+@router.get(
+    "/unread-count",
+    response_model=UnreadNotificationCount,
+)
+def unread_notification_count(
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(
+        get_current_user_id
+    ),
+):
+    count = get_unread_notification_count(
+        db,
+        current_user_id,
+    )
+
+    return {
+        "count": count,
+    }
 
 
 @router.patch(
