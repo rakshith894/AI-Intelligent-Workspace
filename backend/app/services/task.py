@@ -6,13 +6,19 @@ from app.models.task import Task
 from app.schemas.task import TaskCreate, TaskUpdate
 from app.models.user import User
 from app.models.workspace_membership import WorkspaceMembership
+
 from app.services.task_activity import record_activity
-from app.services.notification import create_notification
-from app.services.task_workflow import (
-    validate_status_transition,
+from app.services.task_workflow import validate_status_transition
+
+from app.events.instance import event_dispatcher
+from app.events.types import (
+    TaskAssignedEvent,
+    TaskStatusChangedEvent,
 )
+
 from app.models.label import Label
 from app.models.task_label import TaskLabel
+
 
 VALID_STATUSES = {
     "todo",
@@ -22,6 +28,7 @@ VALID_STATUSES = {
     "cancelled",
 }
 
+
 VALID_PRIORITIES = {
     "low",
     "medium",
@@ -29,6 +36,10 @@ VALID_PRIORITIES = {
     "urgent",
 }
 
+
+# ============================================================
+# CREATE TASK
+# ============================================================
 
 def create_task(
     db: Session,
@@ -43,12 +54,12 @@ def create_task(
 
     if data.priority not in VALID_PRIORITIES:
         raise ValueError("Invalid task priority")
-    
+
     assignee_id = validate_assignee(
-    db,
-    workspace_id,
-    data.assignee_id,
-)
+        db,
+        workspace_id,
+        data.assignee_id,
+    )
 
     task = Task(
         workspace_id=workspace_id,
@@ -65,16 +76,8 @@ def create_task(
     try:
         db.add(task)
         db.flush()
-        if assignee_id is not None:
-            create_notification(
-                db=db,
-                user_id=str(assignee_id),
-                workspace_id=str(task.workspace_id),
-                task_id=str(task.id),
-                notification_type="task_assigned",
-                title="New task assigned",
-                message=f"You were assigned task '{task.title}'",
-            )
+
+        # Activity
         record_activity(
             db=db,
             task_id=str(task.id),
@@ -83,14 +86,34 @@ def create_task(
             action="task_created",
             details=f"Task '{task.title}' was created",
         )
+
+        # Assignment event
+        if assignee_id is not None:
+            event_dispatcher.dispatch(
+                TaskAssignedEvent(
+                    db=db,
+                    task_id=task.id,
+                    workspace_id=task.workspace_id,
+                    user_id=assignee_id,
+                    assigned_by=UUID(user_id),
+                    task_title=task.title,
+                )
+            )
+
+        # Commit everything together
         db.commit()
         db.refresh(task)
+
     except Exception:
         db.rollback()
         raise
 
     return task
 
+
+# ============================================================
+# GET TASKS
+# ============================================================
 
 def get_tasks(
     db: Session,
@@ -107,6 +130,10 @@ def get_tasks(
     ).all()
 
 
+# ============================================================
+# GET SINGLE TASK
+# ============================================================
+
 def get_task(
     db: Session,
     workspace_id: str,
@@ -122,19 +149,36 @@ def get_task(
     )
 
 
+# ============================================================
+# UPDATE TASK
+# ============================================================
+
 def update_task(
     db: Session,
     task: Task,
     data: TaskUpdate,
     user_id: str,
 ) -> Task:
+
     if not data.model_fields_set:
-        raise ValueError("At least one field is required to update a task")
+        raise ValueError(
+            "At least one field is required to update a task"
+        )
 
     old_status = task.status
     old_assignee_id = task.assignee_id
 
-    if "status" in data.model_fields_set and data.status is not None:
+    assignee_changed = False
+
+    # --------------------------------------------------------
+    # STATUS
+    # --------------------------------------------------------
+
+    if (
+        "status" in data.model_fields_set
+        and data.status is not None
+    ):
+
         if data.status not in VALID_STATUSES:
             raise ValueError(
                 "Invalid task status"
@@ -144,49 +188,73 @@ def update_task(
             task.status,
             data.status,
         )
+
         task.status = data.status
 
+    # --------------------------------------------------------
+    # PRIORITY
+    # --------------------------------------------------------
+
     if data.priority is not None:
+
         if data.priority not in VALID_PRIORITIES:
-            raise ValueError("Invalid task priority")
+            raise ValueError(
+                "Invalid task priority"
+            )
+
         task.priority = data.priority
+
+    # --------------------------------------------------------
+    # TITLE
+    # --------------------------------------------------------
 
     if data.title is not None:
         task.title = data.title
 
+    # --------------------------------------------------------
+    # DESCRIPTION
+    # --------------------------------------------------------
+
     if "description" in data.model_fields_set:
         task.description = data.description
 
+    # --------------------------------------------------------
+    # ASSIGNEE
+    # --------------------------------------------------------
+
     if "assignee_id" in data.model_fields_set:
+
         validate_assignee(
             db,
             str(task.workspace_id),
             data.assignee_id,
         )
 
+        task.assignee_id = data.assignee_id
+
+        assignee_changed = (
+            old_assignee_id != data.assignee_id
+        )
+
+    # --------------------------------------------------------
+    # DUE DATE
+    # --------------------------------------------------------
+
     if "due_date" in data.model_fields_set:
         task.due_date = data.due_date
 
     try:
-        if data.assignee_id is not None:
-            task.assignee_id = data.assignee_id
 
-            if old_assignee_id != data.assignee_id:
-                create_notification(
-                    db=db,
-                    user_id=str(data.assignee_id),
-                    workspace_id=str(task.workspace_id),
-                    task_id=str(task.id),
-                    notification_type="task_assigned",
-                    title="New task assigned",
-                    message=f"You were assigned task '{task.title}'",
-                )
+        # ----------------------------------------------------
+        # STATUS ACTIVITY
+        # ----------------------------------------------------
 
         if (
             "status" in data.model_fields_set
             and data.status is not None
             and old_status != data.status
         ):
+
             record_activity(
                 db=db,
                 task_id=str(task.id),
@@ -200,19 +268,9 @@ def update_task(
                 ),
             )
 
-            if task.assignee_id is not None:
-                create_notification(
-                    db=db,
-                    user_id=str(task.assignee_id),
-                    workspace_id=str(task.workspace_id),
-                    task_id=str(task.id),
-                    notification_type="status_changed",
-                    title="Task status changed",
-                    message=(
-                        f"Task '{task.title}' was moved "
-                        f"from '{old_status}' to '{data.status}'"
-                    ),
-                )
+        # ----------------------------------------------------
+        # GENERAL UPDATE ACTIVITY
+        # ----------------------------------------------------
 
         record_activity(
             db=db,
@@ -222,8 +280,52 @@ def update_task(
             action="task_updated",
             details=f"Task '{task.title}' was updated",
         )
+
+        # ----------------------------------------------------
+        # TASK ASSIGNED EVENT
+        # ----------------------------------------------------
+
+        if (
+            assignee_changed
+            and task.assignee_id is not None
+        ):
+
+            event_dispatcher.dispatch(
+                TaskAssignedEvent(
+                    db=db,
+                    task_id=task.id,
+                    workspace_id=task.workspace_id,
+                    user_id=task.assignee_id,
+                    assigned_by=UUID(user_id),
+                    task_title=task.title,
+                )
+            )
+
+        # ----------------------------------------------------
+        # TASK STATUS CHANGED EVENT
+        # ----------------------------------------------------
+
+        if old_status != task.status:
+
+            event_dispatcher.dispatch(
+                TaskStatusChangedEvent(
+                    db=db,
+                    task_id=task.id,
+                    workspace_id=task.workspace_id,
+                    user_id=task.assignee_id,
+                    old_status=old_status,
+                    new_status=task.status,
+                    task_title=task.title,
+                )
+            )
+
+        # ----------------------------------------------------
+        # COMMIT EVERYTHING
+        # ----------------------------------------------------
+
         db.commit()
         db.refresh(task)
+
     except Exception:
         db.rollback()
         raise
@@ -231,22 +333,34 @@ def update_task(
     return task
 
 
+# ============================================================
+# DELETE TASK
+# ============================================================
+
 def delete_task(
     db: Session,
     task: Task,
 ):
+
     try:
         db.delete(task)
         db.commit()
+
     except Exception:
         db.rollback()
         raise
+
+
+# ============================================================
+# VALIDATE ASSIGNEE
+# ============================================================
 
 def validate_assignee(
     db: Session,
     workspace_id: str,
     assignee_id: UUID | None,
 ):
+
     if assignee_id is None:
         return None
 
@@ -274,6 +388,12 @@ def validate_assignee(
         )
 
     return assignee_id
+
+
+# ============================================================
+# SEARCH TASKS
+# ============================================================
+
 def search_tasks(
     db: Session,
     workspace_id: str,
@@ -288,13 +408,18 @@ def search_tasks(
     page: int = 1,
     page_size: int = 20,
 ):
+
     conditions = [
         Task.workspace_id == workspace_id,
         Task.project_id == project_id,
     ]
 
-    # Search
+    # --------------------------------------------------------
+    # SEARCH
+    # --------------------------------------------------------
+
     if search:
+
         search_pattern = f"%{search}%"
 
         conditions.append(
@@ -304,26 +429,42 @@ def search_tasks(
             )
         )
 
-    # Status
+    # --------------------------------------------------------
+    # STATUS
+    # --------------------------------------------------------
+
     if status:
+
         conditions.append(
             Task.status == status
         )
 
-    # Priority
+    # --------------------------------------------------------
+    # PRIORITY
+    # --------------------------------------------------------
+
     if priority:
+
         conditions.append(
             Task.priority == priority
         )
 
-    # Assignee
+    # --------------------------------------------------------
+    # ASSIGNEE
+    # --------------------------------------------------------
+
     if assignee_id:
+
         conditions.append(
             Task.assignee_id == assignee_id
         )
 
-    # Label
+    # --------------------------------------------------------
+    # LABEL
+    # --------------------------------------------------------
+
     if label_id:
+
         conditions.append(
             Task.id.in_(
                 select(TaskLabel.task_id)
@@ -333,14 +474,20 @@ def search_tasks(
             )
         )
 
-    # Total count
+    # --------------------------------------------------------
+    # TOTAL COUNT
+    # --------------------------------------------------------
+
     total = db.scalar(
         select(func.count())
         .select_from(Task)
         .where(*conditions)
     ) or 0
 
-    # Sorting
+    # --------------------------------------------------------
+    # SORTING
+    # --------------------------------------------------------
+
     sort_columns = {
         "created_at": Task.created_at,
         "updated_at": Task.updated_at,
@@ -360,7 +507,10 @@ def search_tasks(
     else:
         order = sort_column.desc()
 
-    # Pagination
+    # --------------------------------------------------------
+    # PAGINATION
+    # --------------------------------------------------------
+
     offset = (page - 1) * page_size
 
     tasks = db.scalars(

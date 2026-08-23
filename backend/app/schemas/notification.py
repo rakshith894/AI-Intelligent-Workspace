@@ -16,3 +16,11 @@ class NotificationResponse(BaseModel):
 
 class UnreadNotificationCount(BaseModel):
     count: int
+
+
+class MarkAllNotificationsReadResponse(BaseModel):
+    updated_count: int
+
+
+class CleanupNotificationsResponse(BaseModel):
+    deleted_count: int

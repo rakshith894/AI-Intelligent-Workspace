@@ -69,6 +69,8 @@ def add_task_comment(
         workspace_id=str(workspace_id),
         user_id=current_user_id,
         data=data,
+        assignee_id=task.assignee_id,
+        task_title=task.title,
     )
 
     return serialize_comment(comment)
