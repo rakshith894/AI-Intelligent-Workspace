@@ -3,6 +3,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+
 @dataclass
 class TaskAssignedEvent:
     db: Session
