@@ -142,14 +142,4 @@ class Notification(Base):
         nullable=False,
         default=datetime.utcnow,
     )
-    mention: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=True,
-    )
-
-    comment_added: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=True,
-    )
+    

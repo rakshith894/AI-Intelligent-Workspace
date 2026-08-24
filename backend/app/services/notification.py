@@ -1,4 +1,3 @@
-
 from datetime import datetime, timedelta
 from uuid import UUID
 
@@ -6,6 +5,9 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.models.notification import Notification
+from app.services.notification_preference import (
+    is_notification_enabled,
+)
 
 
 # ============================================================
@@ -21,20 +23,40 @@ def create_notification(
     workspace_id: str | None = None,
     task_id: str | None = None,
 ):
+    # --------------------------------------------------------
+    # CHECK USER NOTIFICATION PREFERENCE
+    # --------------------------------------------------------
+
+    if not is_notification_enabled(
+        db=db,
+        user_id=user_id,
+        notification_type=notification_type,
+    ):
+        return None
+
+    # --------------------------------------------------------
+    # CREATE NOTIFICATION
+    # --------------------------------------------------------
+
     notification = Notification(
         user_id=UUID(user_id),
+
         workspace_id=(
             UUID(workspace_id)
             if workspace_id
             else None
         ),
+
         task_id=(
             UUID(task_id)
             if task_id
             else None
         ),
+
         type=notification_type,
+
         title=title,
+
         message=message,
     )
 
@@ -126,12 +148,8 @@ def mark_notification_as_read(
 ):
     notification = db.scalar(
         select(Notification).where(
-            Notification.id == UUID(
-                notification_id
-            ),
-            Notification.user_id == UUID(
-                user_id
-            ),
+            Notification.id == UUID(notification_id),
+            Notification.user_id == UUID(user_id),
         )
     )
 
@@ -201,12 +219,6 @@ def cleanup_old_notifications(
 ):
     """
     Delete notifications older than `days`.
-
-    Example:
-        days=90
-
-    deletes notifications created more than
-    90 days ago.
     """
 
     if days <= 0:
@@ -227,6 +239,7 @@ def cleanup_old_notifications(
     db.commit()
 
     return result.rowcount
+
 
 # ============================================================
 # DELETE NOTIFICATION
