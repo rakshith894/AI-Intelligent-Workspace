@@ -1,28 +1,21 @@
 
 from uuid import UUID
 
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    Query,
-)
-
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user_id
 from app.core.database import get_db
 
 from app.schemas.notification import (
-    NotificationResponse,
     NotificationListResponse,
+    NotificationResponse,
     UnreadNotificationCount,
 )
 
 from app.services.notification import (
     get_user_notifications,
     mark_notification_as_read,
-    mark_all_notifications_as_read,
     get_unread_notification_count,
 )
 
@@ -39,13 +32,12 @@ router = APIRouter(
 
 def serialize_notification(
     notification,
-):
+) -> NotificationResponse:
+
     return NotificationResponse(
         id=str(notification.id),
 
-        user_id=str(
-            notification.user_id
-        ),
+        user_id=str(notification.user_id),
 
         workspace_id=(
             str(notification.workspace_id)
@@ -72,7 +64,7 @@ def serialize_notification(
 
 
 # ============================================================
-# LIST NOTIFICATIONS
+# GET NOTIFICATIONS
 # ============================================================
 
 @router.get(
@@ -80,6 +72,12 @@ def serialize_notification(
     response_model=NotificationListResponse,
 )
 def list_notifications(
+    notification_filter: str = Query(
+        default="all",
+        alias="filter",
+        pattern="^(all|unread|read)$",
+    ),
+
     page: int = Query(
         default=1,
         ge=1,
@@ -91,18 +89,15 @@ def list_notifications(
         le=100,
     ),
 
-    notification_filter: str = Query(
-        default="all",
-        alias="filter",
-    ),
-
     db: Session = Depends(get_db),
 
     current_user_id: str = Depends(
         get_current_user_id
     ),
 ):
+
     try:
+
         (
             notifications,
             total,
@@ -116,14 +111,14 @@ def list_notifications(
         )
 
     except ValueError as error:
+
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error),
         ) from error
 
     total_pages = (
-        (total + page_size - 1)
-        // page_size
+        (total + page_size - 1) // page_size
         if total
         else 0
     )
@@ -135,16 +130,21 @@ def list_notifications(
             )
             for notification in notifications
         ],
+
         total=total,
+
         page=page,
+
         page_size=page_size,
+
         total_pages=total_pages,
+
         unread_count=unread_count,
     )
 
 
 # ============================================================
-# UNREAD COUNT
+# GET UNREAD COUNT
 # ============================================================
 
 @router.get(
@@ -158,38 +158,14 @@ def unread_notification_count(
         get_current_user_id
     ),
 ):
+
     count = get_unread_notification_count(
-        db,
-        current_user_id,
+        db=db,
+        user_id=current_user_id,
     )
 
     return {
         "count": count,
-    }
-
-
-# ============================================================
-# MARK ALL NOTIFICATIONS AS READ
-# ============================================================
-
-@router.patch(
-    "/read-all",
-)
-def mark_all_as_read(
-    db: Session = Depends(get_db),
-
-    current_user_id: str = Depends(
-        get_current_user_id
-    ),
-):
-    updated = mark_all_notifications_as_read(
-        db,
-        current_user_id,
-    )
-
-    return {
-        "message": "All notifications marked as read",
-        "updated": updated,
     }
 
 
@@ -210,15 +186,17 @@ def read_notification(
         get_current_user_id
     ),
 ):
+
     notification = mark_notification_as_read(
-        db,
-        str(notification_id),
-        current_user_id,
+        db=db,
+        notification_id=str(notification_id),
+        user_id=current_user_id,
     )
 
-    if not notification:
+    if notification is None:
+
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Notification not found",
         )
 
