@@ -8,6 +8,7 @@ class NotificationPreferenceResponse(BaseModel):
     task_created: bool
     task_updated: bool
     mention: bool
+    comment_added: bool
 
 
 class NotificationPreferenceUpdate(BaseModel):
@@ -16,3 +17,4 @@ class NotificationPreferenceUpdate(BaseModel):
     task_created: bool | None = None
     task_updated: bool | None = None
     mention: bool | None = None
+    comment_added: bool | None = None

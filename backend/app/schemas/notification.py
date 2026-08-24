@@ -18,18 +18,16 @@ class NotificationResponse(BaseModel):
 
 class NotificationListResponse(BaseModel):
     items: list[NotificationResponse]
-
     total: int
-
     page: int
-
     page_size: int
-
     total_pages: int
-
     unread_count: int
 
 
 class UnreadNotificationCount(BaseModel):
     count: int
 
+
+class MarkAllNotificationsReadResponse(BaseModel):
+    updated_count: int

@@ -228,3 +228,26 @@ def cleanup_old_notifications(
 
     return result.rowcount
 
+# ============================================================
+# DELETE NOTIFICATION
+# ============================================================
+
+def delete_notification(
+    db: Session,
+    notification_id: str,
+    user_id: str,
+):
+    notification = db.scalar(
+        select(Notification).where(
+            Notification.id == UUID(notification_id),
+            Notification.user_id == UUID(user_id),
+        )
+    )
+
+    if not notification:
+        return None
+
+    db.delete(notification)
+    db.commit()
+
+    return True
