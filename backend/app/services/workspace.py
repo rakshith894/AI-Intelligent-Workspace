@@ -162,7 +162,18 @@ def leave_workspace(
     user = db.scalar(select(User).where(User.id == user_uuid))
     member_name = user.full_name or user.email if user else "A member"
 
+    # Delete membership
     db.delete(membership)
+
+    # Clean up any past invitation records for this user in this workspace
+    if user and user.email:
+        from sqlalchemy import func
+        db.execute(
+            delete(WorkspaceInvitation).where(
+                WorkspaceInvitation.workspace_id == ws_uuid,
+                func.lower(WorkspaceInvitation.email) == user.email.lower().strip(),
+            )
+        )
 
     # Notify owner
     create_notification(

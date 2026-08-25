@@ -44,6 +44,18 @@ def remove_workspace_member(
     if membership.role == "owner":
         raise ValueError("Cannot remove the owner of the workspace")
 
+    from app.models.workspace_invitation import WorkspaceInvitation
+    from sqlalchemy import delete, func
+
+    user = db.scalar(select(User).where(User.id == target_user_id))
+    if user and user.email:
+        db.execute(
+            delete(WorkspaceInvitation).where(
+                WorkspaceInvitation.workspace_id == workspace_id,
+                func.lower(WorkspaceInvitation.email) == user.email.lower().strip(),
+            )
+        )
+
     db.delete(membership)
     db.commit()
     return True

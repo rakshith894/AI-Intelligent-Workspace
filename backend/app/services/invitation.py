@@ -50,20 +50,21 @@ def create_invitation(
     token = secrets.token_urlsafe(48)
     expires_at = datetime.now(timezone.utc) + timedelta(days=7)
 
-    # Check for an existing pending invitation
+    # Check for ANY existing invitation (pending or previously accepted)
     existing_invitation = db.scalar(
         select(WorkspaceInvitation).where(
             WorkspaceInvitation.workspace_id == workspace_id,
             func.lower(WorkspaceInvitation.email) == email,
-            WorkspaceInvitation.accepted_at.is_(None),
         )
     )
 
     if existing_invitation:
-        # Refresh the existing invitation with a new token and expiration date
+        # Refresh the existing invitation with a new token, new expiration, reset accepted_at, and update inviter
         existing_invitation.token = token
         existing_invitation.expires_at = expires_at
         existing_invitation.created_by = created_by
+        existing_invitation.accepted_at = None
+        existing_invitation.created_at = datetime.now(timezone.utc)
         invitation = existing_invitation
     else:
         invitation = WorkspaceInvitation(
