@@ -14,14 +14,14 @@ export interface Project {
 
 export interface ProjectCreate {
   name: string;
-  description?: string;
-  project_url?: string;
+  description?: string | null;
+  project_url?: string | null;
 }
 
 export interface ProjectUpdate {
   name?: string;
-  description?: string;
-  project_url?: string;
+  description?: string | null;
+  project_url?: string | null;
 }
 
 export async function getProjects(

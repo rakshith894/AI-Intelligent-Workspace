@@ -225,10 +225,10 @@ export default function Projects({
               name: trimmedName,
               description:
                 trimmedDescription ||
-                undefined,
+                null,
               project_url:
                 trimmedUrl ||
-                undefined,
+                null,
             },
           );
 
@@ -614,8 +614,8 @@ export default function Projects({
                   </p>
 
                   {/* PROJECT URL */}
-                  {project.project_url && (
-                    <div className="mt-3">
+                  {project.project_url ? (
+                    <div className="mt-3 flex items-center gap-2">
                       <a
                         href={
                           project.project_url.startsWith("http")
@@ -626,7 +626,7 @@ export default function Projects({
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
                         title={`Open ${project.project_url}`}
-                        className="inline-flex max-w-full items-center gap-1.5 rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-2.5 py-1 text-xs font-medium text-indigo-300 transition hover:border-indigo-400/40 hover:bg-indigo-500/20 hover:text-indigo-200"
+                        className="inline-flex max-w-[85%] items-center gap-1.5 rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-2.5 py-1 text-xs font-medium text-indigo-300 transition hover:border-indigo-400/50 hover:bg-indigo-500/20 hover:text-indigo-200"
                       >
                         <Globe size={13} className="shrink-0" />
                         <span className="truncate">
@@ -634,6 +634,21 @@ export default function Projects({
                         </span>
                         <ExternalLink size={11} className="shrink-0 opacity-70" />
                       </a>
+                    </div>
+                  ) : (
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditModal(project);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-2.5 py-1 text-xs text-white/40 transition hover:border-indigo-400/40 hover:bg-indigo-500/10 hover:text-indigo-300"
+                        title="Click to add a URL / repository link to this project"
+                      >
+                        <Globe size={12} className="opacity-70" />
+                        <span>+ Add Project URL</span>
+                      </button>
                     </div>
                   )}
 
@@ -811,7 +826,7 @@ export default function Projects({
                   />
 
                   <input
-                    type="url"
+                    type="text"
                     value={projectUrl}
                     onChange={(event) =>
                       setProjectUrl(
@@ -986,7 +1001,7 @@ export default function Projects({
                 <div>
                   <label className="mb-1.5 block font-medium text-white/70">Project URL / Live Link (Optional)</label>
                   <input
-                    type="url"
+                    type="text"
                     value={importProjectUrl}
                     onChange={(e) => setImportProjectUrl(e.target.value)}
                     placeholder="e.g. https://github.com/org/repo or https://myproject.app"

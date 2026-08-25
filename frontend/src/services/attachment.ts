@@ -20,6 +20,7 @@ export interface AttachmentListResponse {
 export interface ProjectImportResponse {
   project_id: string;
   name: string;
+  project_url?: string | null;
   imported_tasks_count: number;
   imported_files_count: number;
   message: string;

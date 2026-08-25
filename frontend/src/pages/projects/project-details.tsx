@@ -10,10 +10,12 @@ import {
 import {
   ArrowLeft,
   ArrowUpDown,
+  Check,
   CheckCircle2,
   ChevronDown,
   Circle,
   Clock3,
+  Copy,
   Download,
   ExternalLink,
   Eye,
@@ -26,6 +28,7 @@ import {
   Paperclip,
   Pencil,
   Plus,
+  RefreshCw,
   Search,
   Sparkles,
   Trash2,
@@ -363,7 +366,9 @@ export default function ProjectDetails() {
      TABS & ATTACHMENTS
   ========================================================== */
 
-  const [activeTab, setActiveTab] = useState<"tasks" | "files">("tasks");
+  const [activeTab, setActiveTab] = useState<"tasks" | "files" | "url">("tasks");
+  const [copiedUrl, setCopiedUrl] = useState(false);
+  const [iframeKey, setIframeKey] = useState(0);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loadingAttachments, setLoadingAttachments] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -467,7 +472,7 @@ export default function ProjectDetails() {
 
 
   /* ==========================================================
-     LOAD WORKSPACE
+     LOAD WORKSPACE & PROJECT
   ========================================================== */
 
   useEffect(() => {
@@ -478,8 +483,7 @@ export default function ProjectDetails() {
         setWorkspaceLoading(true);
         setError("");
 
-        const data =
-          await getMyWorkspaces();
+        const data = await getMyWorkspaces();
 
         if (!mounted) {
           return;
@@ -487,21 +491,36 @@ export default function ProjectDetails() {
 
         if (data.length === 0) {
           setWorkspace(null);
-          setError(
-            "No workspace found.",
-          );
+          setError("No workspace found.");
           return;
         }
 
-        setWorkspace(data[0]);
+        // Try to find the exact workspace containing this project
+        let matchingWs = data[0];
+        if (projectId) {
+          for (const ws of data) {
+            try {
+              const p = await getProject(ws.id, projectId);
+              if (p && mounted) {
+                matchingWs = ws;
+                setProject(p);
+                break;
+              }
+            } catch {
+              // try next workspace
+            }
+          }
+        }
+
+        if (mounted) {
+          setWorkspace(matchingWs);
+        }
       } catch (err) {
         console.error(err);
 
         if (mounted) {
           setWorkspace(null);
-          setError(
-            "Unable to load workspace.",
-          );
+          setError("Unable to load workspace.");
         }
       } finally {
         if (mounted) {
@@ -515,7 +534,7 @@ export default function ProjectDetails() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [projectId]);
 
 
   /* ==========================================================
@@ -711,8 +730,9 @@ export default function ProjectDetails() {
     if (!workspace?.id || !projectId) return;
     try {
       setSavingUrl(true);
+      const trimmed = newUrl.trim();
       const updated = await updateProject(workspace.id, projectId, {
-        project_url: newUrl.trim() || undefined,
+        project_url: trimmed ? trimmed : null,
       });
       setProject(updated);
       setProjectUrlModalOpen(false);
@@ -722,6 +742,16 @@ export default function ProjectDetails() {
     } finally {
       setSavingUrl(false);
     }
+  }
+
+  function handleCopyProjectUrl() {
+    if (!project?.project_url) return;
+    const fullUrl = project.project_url.startsWith("http")
+      ? project.project_url
+      : `https://${project.project_url}`;
+    void navigator.clipboard.writeText(fullUrl);
+    setCopiedUrl(true);
+    setTimeout(() => setCopiedUrl(false), 2000);
   }
 
 
@@ -1810,7 +1840,7 @@ export default function ProjectDetails() {
 
           <div className="flex flex-wrap items-center gap-3">
             {/* ATTACH / EDIT URL BUTTON (if not already set or for quick access) */}
-            {!project?.project_url && (
+            {!project?.project_url ? (
               <button
                 type="button"
                 onClick={() => {
@@ -1822,6 +1852,21 @@ export default function ProjectDetails() {
                 <Globe size={14} />
                 <span>Add Project URL</span>
               </button>
+            ) : (
+              <a
+                href={
+                  project.project_url.startsWith("http")
+                    ? project.project_url
+                    : `https://${project.project_url}`
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2.5 text-xs font-semibold text-white shadow-xl shadow-emerald-500/20 transition hover:scale-[1.02]"
+              >
+                <Globe size={14} />
+                <span>Open Project URL</span>
+                <ExternalLink size={12} />
+              </a>
             )}
 
             <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
@@ -1849,6 +1894,22 @@ export default function ProjectDetails() {
               >
                 <Paperclip size={15} />
                 <span>Files & Attachments ({attachments.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("url")}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
+                  activeTab === "url"
+                    ? "bg-indigo-500/20 text-indigo-300 shadow-md shadow-indigo-500/10"
+                    : "text-white/50 hover:bg-white/[0.04] hover:text-white"
+                }`}
+              >
+                <Globe size={15} />
+                <span>Live URL & App</span>
+                {project?.project_url && (
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-400" />
+                )}
               </button>
             </div>
 
@@ -2198,6 +2259,185 @@ export default function ProjectDetails() {
               );
             })()}
           </div>
+        </section>
+      )}
+
+      {/* ==========================================================
+         LIVE URL & APP VIEW
+      ========================================================== */}
+      {activeTab === "url" && (
+        <section className="space-y-6">
+          {project?.project_url ? (
+            <>
+              {/* URL Control Bar */}
+              <div className="flex flex-col gap-4 rounded-[28px] border border-white/[0.08] bg-white/[0.035] p-6 shadow-xl backdrop-blur-2xl md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-indigo-400/20 bg-indigo-500/10">
+                    <Globe size={20} className="text-indigo-300" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-2 w-2 rounded-full bg-emerald-400" />
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">
+                        Live Project Attached
+                      </span>
+                    </div>
+                    <a
+                      href={
+                        project.project_url.startsWith("http")
+                          ? project.project_url
+                          : `https://${project.project_url}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-0.5 block truncate text-sm font-medium text-white transition hover:text-indigo-300"
+                    >
+                      {project.project_url}
+                    </a>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleCopyProjectUrl}
+                    className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium text-white/80 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+                  >
+                    {copiedUrl ? (
+                      <>
+                        <Check size={14} className="text-emerald-400" />
+                        <span className="text-emerald-400">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={14} />
+                        <span>Copy Link</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIframeKey((k) => k + 1)}
+                    title="Reload live preview frame"
+                    className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium text-white/80 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+                  >
+                    <RefreshCw size={14} />
+                    <span>Reload Preview</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditUrlInput(project.project_url || "");
+                      setProjectUrlModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium text-white/80 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+                  >
+                    <Pencil size={13} />
+                    <span>Edit URL</span>
+                  </button>
+
+                  <a
+                    href={
+                      project.project_url.startsWith("http")
+                        ? project.project_url
+                        : `https://${project.project_url}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:scale-[1.02]"
+                  >
+                    <span>Open in New Tab</span>
+                    <ExternalLink size={13} />
+                  </a>
+                </div>
+              </div>
+
+              {/* Embedded Frame Viewport */}
+              <div className="overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#0c0c10] shadow-2xl">
+                {/* Browser top-bar chrome */}
+                <div className="flex items-center justify-between border-b border-white/[0.06] bg-black/40 px-5 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-red-500/50" />
+                    <span className="h-3 w-3 rounded-full bg-yellow-500/50" />
+                    <span className="h-3 w-3 rounded-full bg-emerald-500/50" />
+                  </div>
+                  <div className="flex max-w-md flex-1 items-center justify-center">
+                    <div className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-white/60">
+                      <Globe size={12} className="text-white/40" />
+                      <span className="truncate">{project.project_url}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-white/40">
+                    <button
+                      type="button"
+                      onClick={() => setIframeKey((k) => k + 1)}
+                      className="rounded-lg p-1 transition hover:bg-white/10 hover:text-white"
+                      title="Refresh"
+                    >
+                      <RefreshCw size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Frame container */}
+                <div className="relative min-h-[580px] w-full bg-[#08080c]">
+                  <iframe
+                    key={iframeKey}
+                    src={
+                      project.project_url.startsWith("http")
+                        ? project.project_url
+                        : `https://${project.project_url}`
+                    }
+                    title="Live Project Preview"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                    className="h-[650px] w-full border-0"
+                  />
+                </div>
+
+                {/* Footnote */}
+                <div className="border-t border-white/[0.06] bg-black/30 px-6 py-3 text-xs text-white/40 flex items-center justify-between">
+                  <span>
+                    Note: Some websites and repositories (like GitHub) restrict direct framing via CSP or X-Frame-Options headers.
+                  </span>
+                  <a
+                    href={
+                      project.project_url.startsWith("http")
+                        ? project.project_url
+                        : `https://${project.project_url}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-indigo-300 hover:underline shrink-0 ml-4"
+                  >
+                    Open directly <ExternalLink size={11} />
+                  </a>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center rounded-[28px] border border-dashed border-white/15 bg-white/[0.02] p-12 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-indigo-400/20 bg-indigo-500/10">
+                <Globe size={30} className="text-indigo-300" />
+              </div>
+              <h3 className="mt-5 text-xl font-semibold text-white">No Live URL Attached</h3>
+              <p className="mt-2 max-w-md text-sm text-white/40">
+                Attach a live deployment link, GitHub repository, documentation site, or production web application to view and manage it right here.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditUrlInput("");
+                  setProjectUrlModalOpen(true);
+                }}
+                className="mt-6 flex items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-3 text-sm font-semibold text-white shadow-xl shadow-indigo-500/20 transition hover:scale-[1.02]"
+              >
+                <Plus size={16} />
+                <span>Attach Project URL</span>
+              </button>
+            </div>
+          )}
         </section>
       )}
 
@@ -3291,7 +3531,7 @@ export default function ProjectDetails() {
                 <div className="relative">
                   <Globe size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
                   <input
-                    type="url"
+                    type="text"
                     value={editUrlInput}
                     onChange={(e) => setEditUrlInput(e.target.value)}
                     placeholder="https://github.com/org/repo or https://myproject.app"

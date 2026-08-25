@@ -7,6 +7,8 @@ import {
   CheckCircle2,
   Circle,
   Clock3,
+  ExternalLink,
+  Globe,
   Loader2,
   Pencil,
   Plus,
@@ -22,6 +24,11 @@ import {
   updateTask,
   type Task,
 } from "../../services/task";
+
+import {
+  getProject,
+  type Project,
+} from "../../services/project";
 
 
 interface ProjectTasksProps {
@@ -111,6 +118,9 @@ export default function ProjectTasks({
   projectId,
 }: ProjectTasksProps) {
 
+  const [project, setProject] =
+    useState<Project | null>(null);
+
   const [tasks, setTasks] =
     useState<Task[]>([]);
 
@@ -149,8 +159,18 @@ export default function ProjectTasks({
 
 
   /* ============================================================
-     LOAD TASKS
+     LOAD PROJECT & TASKS
   ============================================================ */
+
+  async function loadProjectInfo() {
+    if (!workspaceId || !projectId) return;
+    try {
+      const data = await getProject(workspaceId, projectId);
+      setProject(data);
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
   async function loadTasks() {
 
@@ -205,6 +225,7 @@ export default function ProjectTasks({
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadProjectInfo();
     void loadTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -596,15 +617,43 @@ export default function ProjectTasks({
               PROJECT TASKS
             </span>
 
-            <h1 className="mt-3 text-4xl font-bold tracking-[-0.03em] md:text-5xl">
-              Tasks
-            </h1>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <h1 className="text-4xl font-bold tracking-[-0.03em] md:text-5xl">
+                {project?.name || "Tasks"}
+              </h1>
+
+              {project?.slug && (
+                <span className="rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-white/40">
+                  /{project.slug}
+                </span>
+              )}
+            </div>
 
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/40 md:text-base">
-              Manage tasks, track progress,
-              and keep your project moving.
+              {project?.description || "Manage tasks, track progress, and keep your project moving."}
             </p>
 
+            {project?.project_url && (
+              <div className="mt-3">
+                <a
+                  href={
+                    project.project_url.startsWith("http")
+                      ? project.project_url
+                      : `https://${project.project_url}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`Open ${project.project_url}`}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-300 transition hover:border-indigo-400/50 hover:bg-indigo-500/20 hover:text-indigo-200 shadow-md shadow-indigo-500/10"
+                >
+                  <Globe size={13} className="shrink-0" />
+                  <span className="max-w-[240px] truncate">
+                    {project.project_url.replace(/^https?:\/\/(www\.)?/, "")}
+                  </span>
+                  <ExternalLink size={11} className="shrink-0 opacity-70" />
+                </a>
+              </div>
+            )}
           </div>
 
 
