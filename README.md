@@ -1,6 +1,6 @@
 # 🧠 AI Intelligent Workspace
 
-> A next-generation, AI-driven project management and collaboration platform engineered for high-velocity software and product teams. Built with modern FastAPI, React 19, PostgreSQL, and multimodal AI copilots.
+> A next-generation, AI-driven project management and collaboration platform engineered for high-velocity software and product teams. Built with modern FastAPI, React 19, PostgreSQL, multimodal AI copilots, and real-time team collaboration.
 
 ---
 
@@ -24,15 +24,33 @@
 - **Smart Workload Balancing & Auto-Assign**: Evaluates member workload distribution and capacity to recommend the optimal assignee for newly created tasks.
 - **Semantic Knowledge Base Search**: Query across all workspace tasks, project docs, and deliverables with instant contextual answers.
 
-### 🏢 Workspace & Project Management
-- **Multi-Tenant Workspaces**: Switch seamlessly across multiple organizations and workspace environments.
-- **Role-Based Access Control (RBAC)**: Fine-grained permissions for `Owner`, `Admin`, `Member`, and `Viewer`.
+---
+
+### 🏢 Multi-Tenant Workspace & Team Collaboration
+- **Global Header Workspace Switcher**: Quick-switch across all your organizations directly from the top navigation bar on any page.
+- **Workspace Lifecycle Management**:
+  - **Delete Workspace (Danger Zone)**: Permanent cascade deletion of workspaces with strict confirmation dialogs.
+  - **Rename Workspace**: Instant workspace renaming with synchronized multi-tab updates.
+  - **Leave Workspace**: Non-owner members can safely leave joined workspaces with confirmation.
+- **Role-Based Access Control (RBAC)**: Fine-grained permissions for `Owner`, `Admin`, `Member`, and `Viewer`. Owners can promote/demote members between `Admin` and `Member` with interactive selectors.
+- **1-Click Invitation & Joining Hub**:
+  - **Invitations Received Hub**: In-app panel displaying all pending invites sent to your email with instant `[ Accept & Join ]` and `[ Copy Token ]` buttons.
+  - **Direct Token Join Modal**: Join any workspace by pasting an invite token.
+  - **Automated Invite Notifications**: Automatic in-app notification alerts upon registration and dual confirmation alerts sent to both the inviter and joiner upon acceptance.
+  - **Gmail SMTP & RFC 2822 Email Service**: Automated invitation emails with custom link generation and delivery headers.
+- **Data Export & Backups**:
+  - **Export Tasks (CSV)**: 1-click download of all tasks, descriptions, assignees, priorities, and statuses.
+  - **Export Workspace (JSON)**: Full structured backup of workspace settings, projects, tasks, and members.
+
+---
+
+### 📋 Project & Deliverable Tracking
 - **Project Tracking & Workspaces**: Organize initiatives with statuses, categories, progress tracking, and file uploads.
 - **Tasks & Backlogs**: Rich task details, priority matrices (`Low`, `Medium`, `High`, `Urgent`), status lifecycles (`Todo`, `In Progress`, `Review`, `Done`), subtasks, due dates, and custom color-coded labels.
 - **Interactive Discussions & Task Comments**: Threaded discussions with activity history on deliverables.
 - **Workload Analytics**: Visual workload distributions and deliverable completion metrics powered by Recharts.
 - **GitHub Integration**: Connect personal GitHub accounts to inspect repositories and sync code intelligence.
-- **Notification Engine**: In-app notifications and configurable SMTP/Gmail email alert preferences.
+- **Command Palette (`Ctrl + K`)**: Quick keyboard spotlight search across all workspace pages and actions.
 
 ---
 
@@ -40,10 +58,10 @@
 
 ```mermaid
 graph TD
-    Client[React 19 + Vite Frontend / Nginx] -->|REST API / JSON| Backend[FastAPI Application Layer]
+    Client[React 19 + Vite Frontend / Vercel] -->|REST API / JSON| Backend[FastAPI Application Layer / Railway]
     Backend -->|SQLAlchemy ORM| DB[(PostgreSQL 16 Database)]
     Backend -->|OpenAI / Groq / OpenRouter| LLM[External LLM Providers]
-    Backend -->|SMTP / TLS| Email[Email Notification Service]
+    Backend -->|SMTP / TLS / Gmail| Email[Email Notification Service]
     Backend -->|Octokit / REST| GitHub[GitHub API]
 ```
 
@@ -62,6 +80,7 @@ graph TD
 - **Migrations**: [Alembic](https://alembic.sqlalchemy.org)
 - **Data Validation & Settings**: [Pydantic v2](https://docs.pydantic.dev) & `pydantic-settings`
 - **Authentication**: JWT (`python-jose` / `pyjwt`), password hashing with `passlib` & `bcrypt`
+- **Email Delivery**: Standard library `smtplib` with RFC 2822 formatted headers (`Date`, `Message-ID`, `Reply-To`)
 
 ### 🐳 Infrastructure & Deployment
 - **Containerization**: Docker multi-stage builds with Alpine bases
@@ -80,7 +99,7 @@ AI-Intelligent-Workspace/
 │   │   ├── api/
 │   │   │   ├── dependencies.py       # Auth dependencies & token parsers
 │   │   │   ├── permission.py         # Workspace RBAC enforcement
-│   │   │   └── routes/               # API endpoints (AI, Auth, Tasks, etc.)
+│   │   │   └── routes/               # API endpoints (AI, Auth, Tasks, Workspaces, Members, etc.)
 │   │   ├── core/
 │   │   │   ├── config.py             # App environment & settings
 │   │   │   ├── database.py           # DB engine & session makers
@@ -88,7 +107,7 @@ AI-Intelligent-Workspace/
 │   │   ├── events/                   # Async event triggers & listeners
 │   │   ├── models/                   # SQLAlchemy ORM database models
 │   │   ├── schemas/                  # Pydantic request & response schemas
-│   │   ├── services/                 # Core business & AI logic
+│   │   ├── services/                 # Core business logic (Auth, Email, Invitations, Workspaces)
 │   │   └── main.py                   # FastAPI app entrypoint & middleware
 │   ├── migrations/                   # Alembic schema migration versions
 │   ├── uploads/                      # Uploaded files & attachment assets
@@ -96,11 +115,11 @@ AI-Intelligent-Workspace/
 │   └── requirements.txt              # Python package dependencies
 ├── frontend/
 │   ├── src/
-│   │   ├── components/               # Shared UI elements & modals
+│   │   ├── components/               # Shared UI elements, Topbar, Modals
 │   │   ├── layouts/                  # App layouts & sidebars
-│   │   ├── pages/                    # Workspace, Tasks, AI, Analytics views
+│   │   ├── pages/                    # Workspace, Tasks, AI, Analytics, Settings views
 │   │   ├── services/                 # Axios API clients
-│   │   ├── App.tsx                   # Main React routing tree
+│   │   ├── App.tsx                   # Main React routing tree & Dashboard
 │   │   └── main.tsx                  # React entry point
 │   ├── Dockerfile                    # Frontend container definition
 │   └── package.json                  # Node packages & build scripts
@@ -117,7 +136,7 @@ The quickest way to run the full stack with PostgreSQL, FastAPI backend, and Rea
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/AI-Intelligent-Workspace.git
+git clone https://github.com/rakshith894/AI-Intelligent-Workspace.git
 cd AI-Intelligent-Workspace
 ```
 
@@ -126,7 +145,7 @@ Copy `.env.example` to `.env` in the root folder:
 ```bash
 cp .env.example .env
 ```
-*(Customize `SECRET_KEY` and database credentials in `.env` as needed).*
+*(Customize `SECRET_KEY`, SMTP credentials, and database config as needed).*
 
 ### 3. Launch Services
 ```bash
@@ -182,7 +201,12 @@ docker-compose up --build -d
    SECRET_KEY=your_development_secret_key_change_me_32chars
    ACCESS_TOKEN_EXPIRE_MINUTES=1440
    ALLOWED_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
-   EMAILS_ENABLED=false
+   EMAILS_ENABLED=true
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_USER=your_email@gmail.com
+   SMTP_PASSWORD=your_gmail_app_password
+   FRONTEND_URL=http://localhost:5173
    ```
 
 5. **Run database migrations:**
@@ -230,29 +254,43 @@ docker-compose up --build -d
 | `SECRET_KEY` | JWT signing cryptographic key | - | `random_32_character_string` |
 | `ENVIRONMENT` | Deployment stage (`development` / `production`) | `production` | `production` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | JWT expiration duration in minutes | `1440` (24h) | `1440` |
-| `ALLOWED_ORIGINS` | Comma-separated CORS allowed domains | `http://localhost:5173` | `https://app.example.com` |
+| `ALLOWED_ORIGINS` | Comma-separated CORS allowed domains | `http://localhost:5173` | `["http://localhost:5173","https://my-aii-intelligent-app.vercel.app"]` |
 | `SMTP_HOST` | SMTP server for email notifications | `smtp.gmail.com` | `smtp.gmail.com` |
 | `SMTP_PORT` | SMTP port | `587` | `587` |
-| `SMTP_USER` | SMTP username / sender email | `""` | `alerts@example.com` |
-| `SMTP_PASSWORD` | SMTP password / app password | `""` | `xxxx-xxxx-xxxx-xxxx` |
+| `SMTP_USER` | SMTP username / sender email | `""` | `your_email@gmail.com` |
+| `SMTP_PASSWORD` | SMTP app password | `""` | `xxxx xxxx xxxx xxxx` |
 | `EMAILS_ENABLED` | Toggle email dispatch on events | `false` | `true` |
-| `FRONTEND_URL` | Base URL used for invitation email links | `http://localhost:5173` | `https://app.example.com` |
+| `FRONTEND_URL` | Base URL used for invitation email links | `http://localhost:5173` | `https://my-aii-intelligent-app.vercel.app` |
 
 ---
 
 ## 📡 API Overview
 
-| Route Prefix | Tag | Description |
+| Route | Method | Description |
 |---|---|---|
-| `/api/v1/auth` | Authentication | Register, login, refresh token, and session validation |
-| `/api/v1/users/me` | Profile & Identity | Fetch and update current authenticated user profile |
-| `/api/v1/workspaces` | Workspace & RBAC | Multi-tenant organization CRUD and member invitations |
-| `/api/v1/workspaces/{id}/projects` | Projects | Project creation, templates, and progress tracking |
-| `/api/v1/workspaces/{id}/tasks` | Tasks & Deliverables | Task lifecycle, priorities, labels, and subtasks |
-| `/api/v1/workspaces/{id}/ai` | AI Intelligence | Copilot chat, task breakdown, sprint health, standup, auto-assign |
-| `/api/v1/workspaces/{id}/analytics` | Analytics | Deliverable velocity, completion rate, and workload telemetry |
-| `/api/v1/notifications` | Notifications | In-app alerts, read status, and delivery preferences |
-| `/api/v1/users/me/github` | GitHub Integration | GitHub account connection, OAuth token validation, repo listing |
+| `/api/v1/auth/register` | `POST` | Create new user account |
+| `/api/v1/auth/login` | `POST` | Authenticate user & return JWT token |
+| `/api/v1/users/me` | `GET` | Fetch authenticated user profile & workspaces |
+| `/api/v1/workspaces` | `GET` / `POST` | List user workspaces or create a new workspace |
+| `/api/v1/workspaces/{id}` | `PATCH` | Rename workspace name |
+| `/api/v1/workspaces/{id}` | `DELETE` | Cascade delete workspace (Owner only) |
+| `/api/v1/workspaces/{id}/leave` | `POST` | Leave a workspace (Members only) |
+| `/api/v1/workspaces/{id}/export` | `GET` | Export full workspace data (projects, tasks, members) |
+| `/api/v1/workspaces/{id}/members` | `GET` | List workspace members |
+| `/api/v1/workspaces/{id}/members/{user_id}/role` | `PATCH` | Update member role (`admin` / `member`) |
+| `/api/v1/workspaces/{id}/members/{user_id}` | `DELETE` | Remove member from workspace |
+| `/api/v1/invitations/send` | `POST` | Invite team member via email |
+| `/api/v1/invitations/my-pending` | `GET` | List all pending invitations sent to current user |
+| `/api/v1/invitations/{token}/details` | `GET` | Preview invitation workspace & inviter details |
+| `/api/v1/invitations/{token}/accept` | `POST` | Accept invitation & join workspace |
+| `/api/v1/workspaces/{id}/projects` | `GET` / `POST` | Project tracking and creation |
+| `/api/v1/workspaces/{id}/tasks` | `GET` / `POST` | Task lifecycle, status updates, assignees, subtasks |
+| `/api/v1/workspaces/{id}/ai/chat` | `POST` | Multimodal AI Copilot workspace chat |
+| `/api/v1/workspaces/{id}/ai/decompose` | `POST` | Break deliverable into structured subtasks |
+| `/api/v1/workspaces/{id}/ai/health` | `GET` | Sprint diagnostics and health scoring |
+| `/api/v1/workspaces/{id}/ai/standup` | `GET` | Automated daily standup report generator |
+| `/api/v1/workspaces/{id}/analytics` | `GET` | Velocity, completion rates, workload metrics |
+| `/api/v1/notifications` | `GET` / `PATCH` | In-app notification center |
 
 ---
 
@@ -262,6 +300,12 @@ Run backend test suites:
 ```bash
 cd backend
 pytest
+```
+
+Run frontend build verification:
+```bash
+cd frontend
+npm run build
 ```
 
 ---
