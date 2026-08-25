@@ -66,7 +66,7 @@ def is_notification_enabled(
 def handle_task_assigned(
     event: TaskAssignedEvent,
 ):
-    print("🔥 TASK ASSIGNED EVENT RECEIVED")
+    print("[EVENT] TASK ASSIGNED EVENT RECEIVED")
     print("Task:", event.task_title)
     print("User:", event.user_id)
 
@@ -80,7 +80,7 @@ def handle_task_assigned(
         "task_assigned",
     ):
         print(
-            "🔕 task_assigned notification disabled"
+            "[DISABLED] task_assigned notification disabled"
         )
         return
 
@@ -105,7 +105,7 @@ def handle_task_assigned(
 def handle_task_status_changed(
     event: TaskStatusChangedEvent,
 ):
-    print("🔥 STATUS EVENT RECEIVED")
+    print("[EVENT] STATUS EVENT RECEIVED")
     print("Task:", event.task_title)
     print("Old status:", event.old_status)
     print("New status:", event.new_status)
@@ -120,7 +120,7 @@ def handle_task_status_changed(
         "status_changed",
     ):
         print(
-            "🔕 status_changed notification disabled"
+            "[DISABLED] status_changed notification disabled"
         )
         return
 
@@ -154,17 +154,14 @@ def handle_comment_added(
     if event.assignee_id == event.user_id:
         return
 
-    # Check user's comment/mention preference.
-    #
-    # Your current preference model uses "mention"
-    # rather than "comment_added", so we use that.
+    # Check user's comment_added preference.
     if not is_notification_enabled(
         event.db,
         event.assignee_id,
-        "mention",
+        "comment_added",
     ):
         print(
-            "🔕 mention notification disabled"
+            "[DISABLED] comment_added notification disabled"
         )
         return
 

@@ -95,6 +95,90 @@ def invite_user(
     )
 
 
+@router.get(
+    "/{workspace_id}/invitations",
+    response_model=list[InvitationResponse],
+)
+def list_workspace_invitations(
+    workspace_id: UUID,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
+    # Verify user is owner or admin
+    membership = db.scalar(
+        select(WorkspaceMembership).where(
+            WorkspaceMembership.workspace_id == workspace_id,
+            WorkspaceMembership.user_id == current_user_id,
+        )
+    )
+
+    if not membership or membership.role not in {"owner", "admin"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only owners and admins can view pending invitations",
+        )
+
+    invitations = db.scalars(
+        select(WorkspaceInvitation).where(
+            WorkspaceInvitation.workspace_id == workspace_id,
+            WorkspaceInvitation.status == "pending",
+        )
+    ).all()
+
+    return [
+        InvitationResponse(
+            id=str(inv.id),
+            workspace_id=str(inv.workspace_id),
+            email=inv.email,
+            token=inv.token,
+            expires_at=inv.expires_at,
+        )
+        for inv in invitations
+    ]
+
+
+@router.delete(
+    "/{workspace_id}/invitations/{invitation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def revoke_workspace_invitation(
+    workspace_id: UUID,
+    invitation_id: UUID,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
+    membership = db.scalar(
+        select(WorkspaceMembership).where(
+            WorkspaceMembership.workspace_id == workspace_id,
+            WorkspaceMembership.user_id == current_user_id,
+        )
+    )
+
+    if not membership or membership.role not in {"owner", "admin"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only owners and admins can revoke invitations",
+        )
+
+    invitation = db.scalar(
+        select(WorkspaceInvitation).where(
+            WorkspaceInvitation.id == invitation_id,
+            WorkspaceInvitation.workspace_id == workspace_id,
+        )
+    )
+
+    if not invitation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invitation not found",
+        )
+
+    db.delete(invitation)
+    db.commit()
+    return None
+
+
+
 from app.schemas.invitation import InvitationAcceptResponse
 from app.services.invitation import accept_invitation
 

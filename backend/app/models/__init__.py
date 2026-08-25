@@ -12,7 +12,9 @@ from app.models.task_activity import TaskActivity
 from app.models.label import Label
 from app.models.task_label import TaskLabel
 from app.models.notification import Notification
+from app.models.notification_preference import NotificationPreference
 from app.models.comment import Comment
+from app.models.attachment import Attachment
 
 __all__ = [
     "User",
@@ -27,5 +29,7 @@ __all__ = [
     "Label",
     "TaskLabel",
     "Notification",
+    "NotificationPreference",
     "Comment",
+    "Attachment",
 ]

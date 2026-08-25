@@ -48,6 +48,7 @@ def get_notification_preferences(
         task_created=preferences.task_created,
         task_updated=preferences.task_updated,
         mention=preferences.mention,
+        comment_added=preferences.comment_added,
     )
 
 
@@ -80,4 +81,5 @@ def update_notification_preferences(
         task_created=preferences.task_created,
         task_updated=preferences.task_updated,
         mention=preferences.mention,
+        comment_added=preferences.comment_added,
     )

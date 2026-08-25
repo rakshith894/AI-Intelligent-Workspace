@@ -18,9 +18,9 @@ from app.schemas.notification_preference import (
 
 def get_or_create_preferences(
     db: Session,
-    user_id: str,
+    user_id: str | UUID,
 ):
-    user_uuid = UUID(user_id)
+    user_uuid = UUID(str(user_id)) if not isinstance(user_id, UUID) else user_id
 
     preferences = db.scalar(
         select(NotificationPreference).where(
@@ -33,28 +33,26 @@ def get_or_create_preferences(
     # --------------------------------------------------------
 
     if not preferences:
-
-        preferences = NotificationPreference(
-            user_id=user_uuid,
-
-            task_assigned=True,
-
-            status_changed=True,
-
-            task_created=True,
-
-            task_updated=True,
-
-            mention=True,
-
-            comment_added=True,
-        )
-
-        db.add(preferences)
-
-        db.commit()
-
-        db.refresh(preferences)
+        try:
+            preferences = NotificationPreference(
+                user_id=user_uuid,
+                task_assigned=True,
+                status_changed=True,
+                task_created=True,
+                task_updated=True,
+                mention=True,
+                comment_added=True,
+            )
+            db.add(preferences)
+            db.commit()
+            db.refresh(preferences)
+        except Exception:
+            db.rollback()
+            preferences = db.scalar(
+                select(NotificationPreference).where(
+                    NotificationPreference.user_id == user_uuid
+                )
+            )
 
     return preferences
 

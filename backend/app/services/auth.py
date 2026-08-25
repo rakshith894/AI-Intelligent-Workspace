@@ -11,15 +11,16 @@ from app.schemas.auth import UserLogin, UserRegister
 
 
 def create_user(db: Session, user_data: UserRegister) -> User:
+    email = user_data.email.lower().strip()
     existing_user = db.scalar(
-        select(User).where(User.email == user_data.email)
+        select(User).where(User.email == email)
     )
 
     if existing_user:
         raise ValueError("Email is already registered")
 
     user = User(
-        email=user_data.email,
+        email=email,
         password_hash=hash_password(user_data.password),
         full_name=user_data.full_name,
     )
@@ -35,8 +36,9 @@ def authenticate_user(
     db: Session,
     credentials: UserLogin,
 ) -> User | None:
+    email = credentials.email.lower().strip()
     user = db.scalar(
-        select(User).where(User.email == credentials.email)
+        select(User).where(User.email == email)
     )
 
     if not user:
@@ -54,6 +56,9 @@ def authenticate_user(
     return user
 
 
+from app.services.email import send_login_notification_email
+
+
 def login_user(
     db: Session,
     credentials: UserLogin,
@@ -62,5 +67,11 @@ def login_user(
 
     if not user:
         raise ValueError("Invalid email or password")
+
+    # Send login alert email to user's Gmail
+    send_login_notification_email(
+        to_email=user.email,
+        full_name=user.full_name,
+    )
 
     return create_access_token(str(user.id))

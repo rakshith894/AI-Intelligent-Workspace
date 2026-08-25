@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import List
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -13,7 +14,24 @@ class Settings(BaseSettings):
 
     database_url: str
     secret_key: str
-    access_token_expire_minutes: int = 30
+    access_token_expire_minutes: int = 30000000
+
+    # CORS — comma-separated origins in env var ALLOWED_ORIGINS
+    allowed_origins: List[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost",
+        "http://localhost:80",
+        "http://127.0.0.1",
+    ]
+
+    # SMTP / Gmail Settings
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    emails_enabled: bool = False
+    frontend_url: str = "http://localhost:5173"
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

@@ -63,3 +63,19 @@ class User(Base):
         onupdate=datetime.utcnow,
         nullable=False,
     )
+
+    # GitHub Connection
+    github_username: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    github_access_token: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
+    github_connected_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )

@@ -4,15 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_user_id
 from app.api.permission import require_workspace_role
 from app.core.database import get_db
 
+from app.models.label import Label
 from app.models.project import Project
 from app.models.task import Task
-from app.models.workspace_membership import WorkspaceMembership
-from app.models.label import Label
 from app.models.task_label import TaskLabel
+from app.models.workspace_membership import WorkspaceMembership
 
 from app.schemas.task import (
     TaskCreate,
@@ -46,19 +45,23 @@ def serialize_task(
     db: Session,
 ) -> TaskResponse:
 
-    label_rows = db.execute(
-        select(Label)
-        .join(
-            TaskLabel,
-            TaskLabel.label_id == Label.id,
+    label_rows = (
+        db.execute(
+            select(Label)
+            .join(
+                TaskLabel,
+                TaskLabel.label_id == Label.id,
+            )
+            .where(
+                TaskLabel.task_id == task.id,
+            )
+            .order_by(
+                Label.name.asc(),
+            )
         )
-        .where(
-            TaskLabel.task_id == task.id
-        )
-        .order_by(
-            Label.name.asc()
-        )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     labels = [
         TaskLabelInfo(
@@ -79,7 +82,7 @@ def serialize_task(
         priority=task.priority,
         assignee_id=(
             str(task.assignee_id)
-            if task.assignee_id
+            if task.assignee_id is not None
             else None
         ),
         due_date=task.due_date,
@@ -92,15 +95,7 @@ def serialize_task(
 
 # ============================================================
 # SERIALIZE MULTIPLE TASKS
-#
-# IMPORTANT:
-# This avoids the N+1 query problem.
-#
-# Before:
-# 1 task query + 20 label queries = 21 queries
-#
-# Now:
-# 1 task query + 1 label query = 2 queries
+# Avoid N+1 label queries
 # ============================================================
 
 def serialize_tasks(
@@ -116,23 +111,26 @@ def serialize_tasks(
         for task in tasks
     ]
 
-    rows = db.execute(
-        select(TaskLabel, Label)
-        .join(
-            Label,
-            TaskLabel.label_id == Label.id,
+    rows = (
+        db.execute(
+            select(TaskLabel, Label)
+            .join(
+                Label,
+                TaskLabel.label_id == Label.id,
+            )
+            .where(
+                TaskLabel.task_id.in_(task_ids),
+            )
+            .order_by(
+                Label.name.asc(),
+            )
         )
-        .where(
-            TaskLabel.task_id.in_(task_ids)
-        )
-        .order_by(
-            Label.name.asc()
-        )
-    ).all()
+        .all()
+    )
 
     labels_by_task: dict[
         UUID,
-        list[TaskLabelInfo]
+        list[TaskLabelInfo],
     ] = {}
 
     for task_label, label in rows:
@@ -159,7 +157,7 @@ def serialize_tasks(
             priority=task.priority,
             assignee_id=(
                 str(task.assignee_id)
-                if task.assignee_id
+                if task.assignee_id is not None
                 else None
             ),
             due_date=task.due_date,
@@ -176,14 +174,14 @@ def serialize_tasks(
 
 
 # ============================================================
-# GET PROJECT
+# PROJECT VALIDATION
 # ============================================================
 
 def get_project_or_404(
     db: Session,
     workspace_id: UUID,
     project_id: UUID,
-):
+) -> Project:
 
     project = db.scalar(
         select(Project).where(
@@ -192,7 +190,7 @@ def get_project_or_404(
         )
     )
 
-    if not project:
+    if project is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
@@ -216,7 +214,10 @@ def create_project_task(
     data: TaskCreate,
     db: Session = Depends(get_db),
     current_user_id: str = Depends(
-        get_current_user_id
+        __import__(
+            "app.api.dependencies",
+            fromlist=["get_current_user_id"],
+        ).get_current_user_id
     ),
     membership: WorkspaceMembership = Depends(
         require_workspace_role(
@@ -234,7 +235,6 @@ def create_project_task(
     )
 
     try:
-
         task = create_task(
             db=db,
             workspace_id=str(workspace_id),
@@ -244,7 +244,6 @@ def create_project_task(
         )
 
     except ValueError as error:
-
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error),
@@ -257,7 +256,7 @@ def create_project_task(
 
 
 # ============================================================
-# SEARCH / LIST TASKS
+# LIST / SEARCH TASKS
 # ============================================================
 
 @router.get(
@@ -271,8 +270,9 @@ def search_project_tasks(
         default=None,
         max_length=100,
     ),
-    status: str | None = Query(
+    status_filter: str | None = Query(
         default=None,
+        alias="status",
     ),
     priority: str | None = Query(
         default=None,
@@ -319,16 +319,16 @@ def search_project_tasks(
         workspace_id=str(workspace_id),
         project_id=str(project_id),
         search=search,
-        status=status,
+        status=status_filter,
         priority=priority,
         assignee_id=(
             str(assignee_id)
-            if assignee_id
+            if assignee_id is not None
             else None
         ),
         label_id=(
             str(label_id)
-            if label_id
+            if label_id is not None
             else None
         ),
         sort_by=sort_by,
@@ -339,20 +339,15 @@ def search_project_tasks(
 
     total_pages = (
         (total + page_size - 1) // page_size
-        if total
+        if total > 0
         else 0
     )
 
-    # IMPORTANT:
-    # Use serialize_tasks() instead of calling
-    # serialize_task() once for every task.
-    items = serialize_tasks(
-        tasks,
-        db,
-    )
-
     return TaskListResponse(
-        items=items,
+        items=serialize_tasks(
+            tasks,
+            db,
+        ),
         total=total,
         page=page,
         page_size=page_size,
@@ -395,8 +390,7 @@ def get_project_task(
         str(task_id),
     )
 
-    if not task:
-
+    if task is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Task not found",
@@ -423,7 +417,10 @@ def update_project_task(
     data: TaskUpdate,
     db: Session = Depends(get_db),
     current_user_id: str = Depends(
-        get_current_user_id
+        __import__(
+            "app.api.dependencies",
+            fromlist=["get_current_user_id"],
+        ).get_current_user_id
     ),
     membership: WorkspaceMembership = Depends(
         require_workspace_role(
@@ -447,24 +444,21 @@ def update_project_task(
         str(task_id),
     )
 
-    if not task:
-
+    if task is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Task not found",
         )
 
     try:
-
         task = update_task(
-            db,
-            task,
-            data,
-            current_user_id,
+            db=db,
+            task=task,
+            data=data,
+            user_id=current_user_id,
         )
 
     except ValueError as error:
-
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error),
@@ -510,8 +504,7 @@ def delete_project_task(
         str(task_id),
     )
 
-    if not task:
-
+    if task is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Task not found",

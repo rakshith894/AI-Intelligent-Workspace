@@ -43,7 +43,7 @@ class TaskResponse(BaseModel):
     created_by: str
     created_at: datetime
     updated_at: datetime
-    labels: list[TaskLabelInfo] = []
+    labels: list[TaskLabelInfo] = Field(default_factory=list)
 
 
 class TaskListResponse(BaseModel):

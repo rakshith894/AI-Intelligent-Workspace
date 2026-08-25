@@ -16,6 +16,9 @@ from app.schemas.invitation import InvitationCreate
 from app.services.notification import create_notification
 
 
+from app.services.email import send_invitation_email
+
+
 def create_invitation(
     db: Session,
     workspace_id: str,
@@ -72,25 +75,40 @@ def create_invitation(
 
     db.add(invitation)
 
-    if user:
-        workspace = db.scalar(
-            select(Workspace).where(
-                Workspace.id == workspace_id
-            )
+    workspace = db.scalar(
+        select(Workspace).where(
+            Workspace.id == workspace_id
+        )
+    )
+
+    inviter = db.scalar(
+        select(User).where(
+            User.id == created_by
+        )
+    )
+    inviter_name = inviter.full_name if inviter else "A team member"
+    workspace_name = workspace.name if workspace else "Workspace"
+
+    if user and workspace:
+        create_notification(
+            db=db,
+            user_id=str(user.id),
+            workspace_id=str(workspace_id),
+            notification_type="workspace_invitation",
+            title="Workspace invitation",
+            message=(
+                f"You have been invited to join "
+                f"workspace '{workspace_name}'"
+            ),
         )
 
-        if workspace:
-            create_notification(
-                db=db,
-                user_id=str(user.id),
-                workspace_id=str(workspace_id),
-                notification_type="workspace_invitation",
-                title="Workspace invitation",
-                message=(
-                    f"You have been invited to join "
-                    f"workspace '{workspace.name}'"
-                ),
-            )
+    # Send Invitation Email with Token to Recipient's Gmail
+    send_invitation_email(
+        to_email=email,
+        workspace_name=workspace_name,
+        token=token,
+        inviter_name=inviter_name,
+    )
 
     db.commit()
     db.refresh(invitation)

@@ -34,6 +34,7 @@ def serialize_project(project):
         name=project.name,
         slug=project.slug,
         description=project.description,
+        project_url=getattr(project, "project_url", None),
         created_by=str(project.created_by),
         created_at=project.created_at,
         updated_at=project.updated_at,
@@ -51,7 +52,7 @@ def create_workspace_project(
     db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id),
     membership: WorkspaceMembership = Depends(
-        require_workspace_role("owner", "admin")
+        require_workspace_role("owner", "admin", "member")
     ),
 ):
     project = create_project(
@@ -123,7 +124,7 @@ def update_workspace_project(
     data: ProjectUpdate,
     db: Session = Depends(get_db),
     membership: WorkspaceMembership = Depends(
-        require_workspace_role("owner", "admin")
+        require_workspace_role("owner", "admin", "member")
     ),
 ):
     project = get_project(

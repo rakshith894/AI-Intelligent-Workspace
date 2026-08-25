@@ -7,8 +7,6 @@ from app.models.comment import Comment
 from app.models.task import Task
 from app.events.instance import event_dispatcher
 from app.events.types import CommentAddedEvent
-from app.events.instance import event_dispatcher
-from app.events.types import CommentAddedEvent
 
 def create_comment(
     db: Session,

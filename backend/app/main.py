@@ -1,4 +1,6 @@
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.auth import router as auth_router
 from app.api.routes.health import router as health_router
@@ -31,6 +33,9 @@ from app.api.routes.comments import (
 from app.api.routes.notification_preferences import (
     router as notification_preferences_router,
 )
+from app.api.routes.ai import router as ai_router
+from app.api.routes.attachment import router as attachment_router
+from app.api.routes.github import router as github_router
 
 from app.core.config import settings
 
@@ -42,6 +47,19 @@ app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description="AI-powered intelligent workspace API",
+)
+
+
+# ============================================================
+# CORS
+# ============================================================
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -71,7 +89,14 @@ app.include_router(notification_router)
 app.include_router(notification_preferences_router)
 
 app.include_router(comments_router)
+app.include_router(ai_router)
+app.include_router(attachment_router)
+app.include_router(github_router)
 
+
+# ============================================================
+# ROOT
+# ============================================================
 
 @app.get("/")
 async def root():
