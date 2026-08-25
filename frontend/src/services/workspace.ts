@@ -107,6 +107,46 @@ export async function leaveWorkspace(
   await api.post(`/api/v1/workspaces/${workspaceId}/leave`);
 }
 
+export interface WorkspaceExportData {
+  workspace: {
+    id: string;
+    name: string;
+    slug: string;
+    created_at: string | null;
+  };
+  members: Array<{
+    user_id: string;
+    full_name: string | null;
+    email: string;
+    role: string;
+  }>;
+  projects: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+  }>;
+  tasks: Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    status: string;
+    priority: string;
+    due_date: string | null;
+    project_name: string;
+    assignee: string;
+  }>;
+}
+
+export async function exportWorkspaceData(
+  workspaceId: string,
+): Promise<WorkspaceExportData> {
+  const response = await api.get<WorkspaceExportData>(
+    `/api/v1/workspaces/${workspaceId}/export`,
+  );
+  return response.data;
+}
+
+
 
 /* ============================================================
    GET WORKSPACE MEMBERS
@@ -130,6 +170,19 @@ export async function removeWorkspaceMember(
     `/api/v1/workspaces/${workspaceId}/members/${targetUserId}`,
   );
 }
+
+export async function updateMemberRole(
+  workspaceId: string,
+  targetUserId: string,
+  role: "admin" | "member",
+): Promise<{ message: string; role: string }> {
+  const response = await api.patch<{ message: string; role: string }>(
+    `/api/v1/workspaces/${workspaceId}/members/${targetUserId}/role`,
+    { role },
+  );
+  return response.data;
+}
+
 
 /* ============================================================
    INVITE MEMBER

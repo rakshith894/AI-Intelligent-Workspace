@@ -123,4 +123,101 @@ def leave_user_workspace(
             detail=str(err),
         ) from err
 
-    return {"message": "Successfully left workspace"}
+    return {"message": "Successfully left workspace"}
+
+
+@router.get(
+    "/{workspace_id}/export",
+    status_code=status.HTTP_200_OK,
+)
+def export_workspace_data(
+    workspace_id: UUID,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    from app.models.task import Task
+    from app.models.project import Project
+    from app.models.workspace import Workspace
+    from app.models.workspace_membership import WorkspaceMembership
+    from app.models.user import User
+
+    # Verify membership
+    membership = db.scalar(
+        select(WorkspaceMembership).where(
+            WorkspaceMembership.workspace_id == workspace_id,
+            WorkspaceMembership.user_id == user_id,
+        )
+    )
+    if not membership:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You must be a workspace member to export data",
+        )
+
+    workspace = db.scalar(select(Workspace).where(Workspace.id == workspace_id))
+    if not workspace:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace not found",
+        )
+
+    # Fetch members
+    members_rows = db.execute(
+        select(WorkspaceMembership, User)
+        .join(User, User.id == WorkspaceMembership.user_id)
+        .where(WorkspaceMembership.workspace_id == workspace_id)
+    ).all()
+
+    # Fetch projects
+    projects = db.scalars(
+        select(Project).where(Project.workspace_id == workspace_id)
+    ).all()
+
+    # Fetch tasks
+    tasks = db.scalars(
+        select(Task).where(Task.workspace_id == workspace_id)
+    ).all()
+
+    # Map project names
+    project_map = {str(p.id): p.name for p in projects}
+    user_map = {str(u.id): (u.full_name or u.email) for _, u in members_rows}
+
+    return {
+        "workspace": {
+            "id": str(workspace.id),
+            "name": workspace.name,
+            "slug": workspace.slug,
+            "created_at": str(workspace.created_at) if hasattr(workspace, "created_at") else None,
+        },
+        "members": [
+            {
+                "user_id": str(u.id),
+                "full_name": u.full_name,
+                "email": u.email,
+                "role": m.role,
+            }
+            for m, u in members_rows
+        ],
+        "projects": [
+            {
+                "id": str(p.id),
+                "name": p.name,
+                "description": p.description,
+            }
+            for p in projects
+        ],
+        "tasks": [
+            {
+                "id": str(t.id),
+                "title": t.title,
+                "description": t.description,
+                "status": t.status,
+                "priority": t.priority,
+                "due_date": str(t.due_date) if t.due_date else None,
+                "project_name": project_map.get(str(t.project_id), "General") if t.project_id else "General",
+                "assignee": user_map.get(str(t.assignee_id), "Unassigned") if t.assignee_id else "Unassigned",
+            }
+            for t in tasks
+        ],
+    }
+

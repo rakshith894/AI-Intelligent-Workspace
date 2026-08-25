@@ -21,6 +21,8 @@ import {
   Edit3,
   AlertTriangle,
   X,
+  Download,
+  FileText,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -35,6 +37,7 @@ import {
   updateWorkspace,
   deleteWorkspace,
   leaveWorkspace,
+  exportWorkspaceData,
   type Workspace,
 } from "../../services/workspace";
 import {
@@ -43,6 +46,7 @@ import {
   disconnectGitHub,
   getGitHubRepos,
   type GitHubStatus,
+
   type GitHubRepo,
 } from "../../services/github";
 
@@ -594,6 +598,66 @@ export default function SettingsPage() {
     setTimeout(() => setCopiedId(false), 2000);
   }
 
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExportJSON() {
+    if (!workspace || exporting) return;
+    try {
+      setExporting(true);
+      const data = await exportWorkspaceData(workspace.id);
+      const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", jsonString);
+      downloadAnchor.setAttribute("download", `${workspace.name.toLowerCase().replace(/\s+/g, "-")}-workspace-export.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      setSuccessMessage("Workspace JSON exported successfully.");
+      setTimeout(() => setSuccessMessage(""), 2500);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to export workspace data.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleExportCSV() {
+    if (!workspace || exporting) return;
+    try {
+      setExporting(true);
+      const data = await exportWorkspaceData(workspace.id);
+      const headers = ["Task ID", "Title", "Description", "Status", "Priority", "Project", "Assignee", "Due Date"];
+      const rows = data.tasks.map((t) => [
+        `"${t.id}"`,
+        `"${(t.title || "").replace(/"/g, '""')}"`,
+        `"${(t.description || "").replace(/"/g, '""')}"`,
+        `"${t.status}"`,
+        `"${t.priority}"`,
+        `"${(t.project_name || "").replace(/"/g, '""')}"`,
+        `"${(t.assignee || "").replace(/"/g, '""')}"`,
+        `"${t.due_date || ""}"`,
+      ]);
+
+      const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `${workspace.name.toLowerCase().replace(/\s+/g, "-")}-tasks.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setSuccessMessage("Tasks CSV exported successfully.");
+      setTimeout(() => setSuccessMessage(""), 2500);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to export tasks CSV.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+
   /* ============================================================
      LOADING
   ============================================================ */
@@ -1004,7 +1068,28 @@ export default function SettingsPage() {
                 <span>Owner Access Hub</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => void handleExportCSV()}
+              disabled={exporting}
+              className="flex items-center gap-1.5 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3.5 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-50"
+            >
+              <Download size={14} />
+              <span>Export Tasks (CSV)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void handleExportJSON()}
+              disabled={exporting}
+              className="flex items-center gap-1.5 rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-3.5 py-2 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-500/20 disabled:opacity-50"
+            >
+              <FileText size={14} />
+              <span>Export Workspace (JSON)</span>
+            </button>
           </div>
+
 
           {/* DANGER ZONE */}
           <div className="border-t border-white/[0.06] pt-5">

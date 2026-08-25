@@ -47,3 +47,31 @@ def remove_workspace_member(
     db.delete(membership)
     db.commit()
     return True
+
+
+def update_member_role(
+    db: Session,
+    workspace_id: str,
+    target_user_id: str,
+    new_role: str,
+):
+    if new_role not in {"admin", "member"}:
+        raise ValueError("Role must be 'admin' or 'member'")
+
+    membership = db.scalar(
+        select(WorkspaceMembership).where(
+            WorkspaceMembership.workspace_id == workspace_id,
+            WorkspaceMembership.user_id == target_user_id,
+        )
+    )
+
+    if not membership:
+        return None
+
+    if membership.role == "owner":
+        raise ValueError("Cannot change role of workspace owner")
+
+    membership.role = new_role
+    db.commit()
+    db.refresh(membership)
+    return membership

@@ -16,16 +16,22 @@ import {
   BarChart3,
   Shield,
   Zap,
+  Crown,
+  ChevronDown,
+  Plus,
+  Check,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
 import { logout } from "../../services/auth";
 import { getNotifications } from "../../services/notifications";
+import { getMyWorkspaces, type Workspace } from "../../services/workspace";
 
 interface TopbarProps {
   onMenuClick: () => void;
 }
+
 
 interface CommandItem {
   label: string;
@@ -89,22 +95,34 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
   const navigate = useNavigate();
   const [commandOpen, setCommandOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [unreadCount, setUnreadCount] = useState(0);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
+
   const profileRef = useRef<HTMLDivElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    async function loadNotificationsCount() {
+    async function loadData() {
       try {
-        const notifData = await getNotifications();
+        const [notifData, wsData] = await Promise.all([
+          getNotifications().catch(() => ({ unread_count: 0 })),
+          getMyWorkspaces().catch(() => []),
+        ]);
         setUnreadCount(notifData.unread_count ?? 0);
+        setWorkspaces(wsData || []);
+        if (wsData && wsData.length > 0) {
+          setActiveWorkspace(wsData[0]);
+        }
       } catch {
         // quiet fallback
       }
     }
-    void loadNotificationsCount();
+    void loadData();
     const interval = setInterval(() => {
-      void loadNotificationsCount();
+      void getNotifications().then((data) => setUnreadCount(data.unread_count ?? 0)).catch(() => {});
     }, 10000);
     return () => clearInterval(interval);
   }, []);
@@ -119,6 +137,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
       if (event.key === "Escape") {
         setCommandOpen(false);
         setProfileOpen(false);
+        setWorkspaceOpen(false);
       }
     };
 
@@ -126,18 +145,21 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  /* CLICK-AWAY for profile dropdown */
+  /* CLICK-AWAY */
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setProfileOpen(false);
       }
+      if (workspaceRef.current && !workspaceRef.current.contains(event.target as Node)) {
+        setWorkspaceOpen(false);
+      }
     }
-    if (profileOpen) {
+    if (profileOpen || workspaceOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [profileOpen]);
+  }, [profileOpen, workspaceOpen]);
 
   const filteredCommands = commands.filter(
     (command) =>
@@ -154,7 +176,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
     <>
       {/* TOPBAR HEADER */}
       <header className="fixed left-0 right-0 top-0 z-40 h-20 border-b border-white/[0.07] bg-[#080914]/75 backdrop-blur-2xl">
-        <div className="flex h-full items-center gap-4 px-4 md:pl-[280px] md:pr-8">
+        <div className="flex h-full items-center gap-3 px-4 md:pl-[280px] md:pr-8">
           {/* Mobile menu */}
           <button
             type="button"
@@ -170,26 +192,130 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
             onClick={() => setCommandOpen(true)}
             whileHover={{ scale: 1.005 }}
             whileTap={{ scale: 0.995 }}
-            className="group hidden h-11 w-full max-w-xl items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.035] px-4 text-left transition hover:border-indigo-400/30 hover:bg-white/[0.055] md:flex"
+            className="group hidden h-11 w-full max-w-sm items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.035] px-4 text-left transition hover:border-indigo-400/30 hover:bg-white/[0.055] lg:flex"
           >
-            <Search size={17} className="text-gray-500 transition group-hover:text-indigo-400" />
-            <span className="flex-1 text-sm text-gray-500">Quick search or navigate (Ctrl + K)...</span>
-            <span className="flex items-center gap-1 rounded-lg border border-white/[0.08] bg-black/20 px-2 py-1 text-[10px] text-gray-400">
-              <Command size={10} />K
+            <Search size={16} className="text-gray-500 transition group-hover:text-indigo-400" />
+            <span className="flex-1 text-xs text-gray-500">Quick search (Ctrl + K)...</span>
+            <span className="flex items-center gap-1 rounded-lg border border-white/[0.08] bg-black/20 px-2 py-0.5 text-[10px] text-gray-400">
+              <Command size={9} />K
             </span>
           </motion.button>
 
           {/* Right Side Actions */}
           <div className="ml-auto flex items-center gap-2.5">
+            {/* WORKSPACE SELECTOR DROPDOWN */}
+            {activeWorkspace && (
+              <div className="relative" ref={workspaceRef}>
+                <motion.button
+                  type="button"
+                  onClick={() => setWorkspaceOpen((prev) => !prev)}
+                  whileHover={{ scale: 1.02 }}
+                  className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-medium text-white transition hover:bg-white/[0.08]"
+                >
+                  <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-300">
+                    {activeWorkspace.role === "owner" ? (
+                      <Crown size={12} className="text-amber-300" />
+                    ) : (
+                      <Users size={12} className="text-indigo-300" />
+                    )}
+                  </div>
+                  <span className="max-w-[120px] truncate font-semibold">
+                    {activeWorkspace.name}
+                  </span>
+                  <ChevronDown size={13} className="text-white/40" />
+                </motion.button>
+
+                {workspaceOpen && (
+                  <div className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-white/10 bg-[#0c0d18]/95 p-2 shadow-2xl backdrop-blur-2xl">
+                    <div className="border-b border-white/[0.06] px-3 py-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                        Your Workspaces ({workspaces.length})
+                      </p>
+                    </div>
+
+                    <div className="max-h-48 overflow-y-auto py-1 space-y-1">
+                      {workspaces.map((ws) => (
+                        <button
+                          key={ws.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveWorkspace(ws);
+                            setWorkspaceOpen(false);
+                            navigate("/");
+                          }}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs transition ${
+                            activeWorkspace.id === ws.id
+                              ? "bg-indigo-500/20 text-white font-semibold"
+                              : "text-white/70 hover:bg-white/[0.05] hover:text-white"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            {ws.role === "owner" ? (
+                              <Crown size={13} className="text-amber-300 shrink-0" />
+                            ) : (
+                              <Users size={13} className="text-indigo-300 shrink-0" />
+                            )}
+                            <span className="truncate">{ws.name}</span>
+                          </div>
+                          {activeWorkspace.id === ws.id && (
+                            <Check size={13} className="text-indigo-400 shrink-0" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="border-t border-white/[0.06] pt-1.5 space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWorkspaceOpen(false);
+                          navigate("/settings");
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-xs text-indigo-300 hover:bg-indigo-500/10 transition font-medium"
+                      >
+                        <Plus size={13} />
+                        <span>Create Workspace</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWorkspaceOpen(false);
+                          navigate("/workspace/members");
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-xs text-white/60 hover:bg-white/[0.05] hover:text-white transition"
+                      >
+                        <Users size={13} />
+                        <span>Manage Team & Invites</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWorkspaceOpen(false);
+                          navigate("/settings");
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-xs text-white/60 hover:bg-white/[0.05] hover:text-white transition"
+                      >
+                        <Settings size={13} />
+                        <span>Workspace Settings</span>
+                      </button>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* AI Copilot shortcut */}
             <motion.button
               type="button"
               onClick={() => navigate("/ai")}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
-              className="flex items-center gap-2 rounded-xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 to-purple-500/15 px-3.5 py-2.5 text-sm font-medium text-indigo-300 transition hover:border-indigo-400/40 hover:from-indigo-500/25 hover:to-purple-500/25"
+              className="flex items-center gap-2 rounded-xl border border-indigo-400/25 bg-gradient-to-r from-indigo-500/15 to-purple-500/15 px-3 py-2 text-xs font-medium text-indigo-300 transition hover:border-indigo-400/40 hover:from-indigo-500/25 hover:to-purple-500/25"
             >
-              <Sparkles size={16} className="text-indigo-300" />
+              <Sparkles size={14} className="text-indigo-300" />
               <span className="hidden sm:inline">AI Copilot</span>
             </motion.button>
 
@@ -199,12 +325,12 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
               onClick={() => navigate("/notifications")}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
-              className="relative rounded-xl border border-white/[0.08] bg-white/[0.035] p-2.5 text-gray-400 transition hover:bg-white/[0.07] hover:text-white"
+              className="relative rounded-xl border border-white/[0.08] bg-white/[0.035] p-2 text-gray-400 transition hover:bg-white/[0.07] hover:text-white"
               title="Notifications"
             >
-              <Bell size={18} />
+              <Bell size={16} />
               {unreadCount > 0 && (
-                <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-[9px] font-bold text-white shadow-[0_0_8px_rgba(129,140,248,0.9)]">
+                <span className="absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-indigo-500 text-[8px] font-bold text-white shadow-[0_0_8px_rgba(129,140,248,0.9)]">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
@@ -212,6 +338,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
 
             {/* Profile Dropdown */}
             <div className="relative" ref={profileRef}>
+
               <motion.button
                 type="button"
                 onClick={() => setProfileOpen((prev) => !prev)}

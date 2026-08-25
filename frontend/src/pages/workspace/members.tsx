@@ -26,6 +26,7 @@ import {
   acceptInvitation,
   revokeInvitation,
   removeWorkspaceMember,
+  updateMemberRole,
   inviteToWorkspace,
   isWorkspaceOwner,
   type Workspace,
@@ -33,6 +34,7 @@ import {
   type InvitationResponse,
   type MyPendingInvitation,
 } from "../../services/workspace";
+
 
 /* ============================================================
    JOIN WITH TOKEN MODAL
@@ -522,6 +524,23 @@ export default function WorkspaceMembers() {
     }
   }
 
+  async function handleRoleChange(member: WorkspaceMember, newRole: "admin" | "member") {
+    const targetUserId = member.user_id || member.id;
+    if (!workspace || !targetUserId || isWorkspaceOwner(member.role)) return;
+
+    try {
+      await updateMemberRole(workspace.id, targetUserId, newRole);
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === member.id || m.user_id === targetUserId ? { ...m, role: newRole } : m
+        )
+      );
+    } catch (err) {
+      console.error("Failed to update role:", err);
+    }
+  }
+
+
   function handleCopyToken(inv: InvitationResponse | MyPendingInvitation) {
     void navigator.clipboard.writeText(inv.token).then(() => {
       setCopiedTokenId(inv.id);
@@ -960,17 +979,31 @@ export default function WorkspaceMembers() {
                           <Crown size={15} className="text-amber-300" />
                         )}
 
-                        <span
-                          className={`rounded-lg border px-3 py-1.5 text-xs capitalize ${
-                            memberIsOwner
-                              ? "border-amber-400/20 bg-amber-400/[0.05] text-amber-200"
-                              : member.role === "admin"
+                        {memberIsOwner ? (
+                          <span className="rounded-lg border border-amber-400/20 bg-amber-400/[0.05] px-3 py-1.5 text-xs font-semibold capitalize text-amber-200">
+                            Owner
+                          </span>
+                        ) : isOwner ? (
+                          <select
+                            value={member.role || "member"}
+                            onChange={(e) => void handleRoleChange(member, e.target.value as "admin" | "member")}
+                            className="rounded-lg border border-indigo-400/20 bg-black/40 px-2.5 py-1 text-xs capitalize text-indigo-200 outline-none hover:border-indigo-400/40 cursor-pointer"
+                          >
+                            <option value="member" className="bg-[#0c0d18] text-white">Member</option>
+                            <option value="admin" className="bg-[#0c0d18] text-white">Admin</option>
+                          </select>
+                        ) : (
+                          <span
+                            className={`rounded-lg border px-3 py-1.5 text-xs capitalize ${
+                              member.role === "admin"
                                 ? "border-indigo-400/20 bg-indigo-400/[0.05] text-indigo-200"
                                 : "border-white/10 bg-white/[0.04] text-white/60"
-                          }`}
-                        >
-                          {member.role || "member"}
-                        </span>
+                            }`}
+                          >
+                            {member.role || "member"}
+                          </span>
+                        )}
+
 
                         {canInvite && !memberIsOwner && (
                           <button

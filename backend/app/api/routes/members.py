@@ -117,6 +117,57 @@ def remove_member_from_workspace(
     return None
 
 
+from pydantic import BaseModel
+
+class RoleUpdate(BaseModel):
+    role: str
+
+@router.patch(
+    "/{workspace_id}/members/{target_user_id}/role",
+)
+def change_member_role(
+    workspace_id: UUID,
+    target_user_id: UUID,
+    data: RoleUpdate,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
+    current_membership = db.scalar(
+        select(WorkspaceMembership).where(
+            WorkspaceMembership.workspace_id == workspace_id,
+            WorkspaceMembership.user_id == current_user_id,
+        )
+    )
+
+    if not current_membership or current_membership.role != "owner":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the workspace owner can change member roles",
+        )
+
+    from app.services.membership import update_member_role
+    try:
+        updated = update_member_role(
+            db=db,
+            workspace_id=str(workspace_id),
+            target_user_id=str(target_user_id),
+            new_role=data.role,
+        )
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(err),
+        )
+
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Member not found in workspace",
+        )
+
+    return {"message": "Role updated successfully", "role": updated.role}
+
+
 @router.get(
     "/{workspace_id}/owner-test",
 )
@@ -129,4 +180,4 @@ def owner_only_test(
     return {
         "message": "Owner permission verified",
         "role": membership.role,
-    }
+    }
