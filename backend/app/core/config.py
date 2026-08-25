@@ -23,6 +23,7 @@ class Settings(BaseSettings):
         "http://localhost",
         "http://localhost:80",
         "http://127.0.0.1",
+        "https://my-aii-intelligent-app.vercel.app",
     ]
 
     # SMTP / Gmail Settings (fallback)

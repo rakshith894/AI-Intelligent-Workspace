@@ -86,11 +86,20 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
   }, []);
 
   return (
-    <aside
-      className={`fixed bottom-0 left-0 top-0 z-50 hidden border-r border-white/[0.07] bg-[#080914]/85 backdrop-blur-2xl transition-all duration-300 md:flex md:flex-col ${
-        collapsed ? "w-[78px]" : "w-[260px]"
-      }`}
-    >
+    <>
+      {/* MOBILE BACKDROP */}
+      {!collapsed && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+          onClick={onCollapse}
+        />
+      )}
+
+      <aside
+        className={`fixed bottom-0 left-0 top-0 z-50 flex flex-col border-r border-white/[0.07] bg-[#080914]/95 backdrop-blur-2xl transition-all duration-300
+          ${collapsed ? "-translate-x-full md:translate-x-0 md:w-[78px]" : "translate-x-0 w-[260px]"}
+        `}
+      >
       {/* AMBIENT GLOW */}
       <div className="pointer-events-none absolute left-1/2 top-24 h-48 w-48 -translate-x-1/2 rounded-full bg-indigo-600/10 blur-[90px]" />
 
@@ -374,5 +383,6 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
         </button>
       </div>
     </aside>
+    </>
   );
 }

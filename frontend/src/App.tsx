@@ -82,8 +82,10 @@ function ProtectedLayout() {
 
 function CreateWorkspace({
   onCreated,
+  onCancel,
 }: {
   onCreated: (workspace: Workspace) => void;
+  onCancel?: () => void;
 }) {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -158,13 +160,13 @@ function CreateWorkspace({
             </p>
 
             <h1 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
-              Create your workspace
+              {onCancel ? "New Workspace" : "Create your workspace"}
             </h1>
 
             <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-white/40">
-              You don't have a workspace yet. Create one
-              to start managing projects, tasks, analytics
-              and your team.
+              {onCancel
+                ? "Give your new workspace a name to get started."
+                : "You don't have a workspace yet. Create one to start managing projects, tasks, analytics and your team."}
             </p>
           </div>
 
@@ -193,7 +195,7 @@ function CreateWorkspace({
                 onChange={(event) =>
                   setName(event.target.value)
                 }
-                placeholder="e.g. Intelligent Workspace"
+                placeholder="e.g. My Team Workspace"
                 minLength={2}
                 maxLength={255}
                 required
@@ -222,6 +224,17 @@ function CreateWorkspace({
                 </>
               )}
             </button>
+
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={saving}
+                className="w-full text-center text-sm text-white/40 transition hover:text-white/70 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            )}
           </form>
         </div>
       </div>
@@ -252,6 +265,9 @@ function Dashboard() {
   const [error, setError] = useState("");
 
   const [workspaceMenuOpen, setWorkspaceMenuOpen] =
+    useState(false);
+
+  const [showCreateWorkspace, setShowCreateWorkspace] =
     useState(false);
 
   /* ==========================================================
@@ -347,16 +363,18 @@ function Dashboard() {
   }
 
   /* ==========================================================
-     NO WORKSPACE
+     NO WORKSPACE — or user clicked "Create new"
   ========================================================== */
 
-  if (workspaces.length === 0) {
+  if (workspaces.length === 0 || showCreateWorkspace) {
     return (
       <CreateWorkspace
         onCreated={(workspace) => {
-          setWorkspaces([workspace]);
+          setWorkspaces((prev) => [...prev, workspace]);
           setSelectedWorkspace(workspace);
+          setShowCreateWorkspace(false);
         }}
+        onCancel={workspaces.length > 0 ? () => setShowCreateWorkspace(false) : undefined}
       />
     );
   }
@@ -483,6 +501,20 @@ function Dashboard() {
                     </span>
                   </button>
                 ))}
+
+                <div className="border-t border-white/[0.06] pt-1 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWorkspaceMenuOpen(false);
+                      setShowCreateWorkspace(true);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-indigo-400 transition hover:bg-indigo-500/10"
+                  >
+                    <Plus size={15} />
+                    <span>New Workspace</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>

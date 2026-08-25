@@ -188,7 +188,9 @@ export default function Notifications() {
   ============================================================ */
 
   function formatDate(dateStr: string): string {
-    const date = new Date(dateStr);
+    // Ensure UTC timestamps are parsed correctly (append Z if missing)
+    const normalised = dateStr.endsWith("Z") ? dateStr : dateStr + "Z";
+    const date = new Date(normalised);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const mins = Math.floor(diff / 60000);

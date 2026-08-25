@@ -6,8 +6,10 @@ import Sidebar from "../components/layout/Sidebar";
 import Topbar from "../components/layout/Topbar";
 
 export default function AppLayout() {
+  // On mobile: true = drawer closed, false = drawer open
+  // On desktop: true = collapsed to icons, false = full width
   const [sidebarCollapsed, setSidebarCollapsed] =
-    useState(false);
+    useState(true);
   const location = useLocation();
 
   return (
