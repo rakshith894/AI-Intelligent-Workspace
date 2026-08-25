@@ -1,10 +1,10 @@
-﻿"\""add notification preferences
+﻿"""add notification preferences
 
 Revision ID: e2ba6d026e21
 Revises: 8ee17cde2c13
 Create Date: 2026-08-23 12:08:49.690886
 
-"\""
+"""
 from typing import Sequence, Union
 
 from alembic import op
