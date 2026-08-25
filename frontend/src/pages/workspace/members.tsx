@@ -11,6 +11,7 @@ import {
   Users,
   X,
   CheckCircle2,
+  Trash2,
 } from "lucide-react";
 
 import {
@@ -18,6 +19,7 @@ import {
   getWorkspaceMembers,
   getPendingInvitations,
   revokeInvitation,
+  removeWorkspaceMember,
   inviteToWorkspace,
   isWorkspaceOwner,
   type Workspace,
@@ -259,6 +261,7 @@ export default function WorkspaceMembers() {
     useState<InvitationResponse | null>(null);
   const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
 
   async function loadPending(wsId: string) {
     try {
@@ -335,6 +338,22 @@ export default function WorkspaceMembers() {
       console.error("Failed to revoke invitation:", err);
     } finally {
       setRevokingId(null);
+    }
+  }
+
+  async function handleRemoveMember(member: WorkspaceMember) {
+    const targetUserId = member.user_id || member.id;
+    if (!workspace || !targetUserId || removingMemberId) return;
+    if (isWorkspaceOwner(member.role)) return;
+
+    try {
+      setRemovingMemberId(targetUserId);
+      await removeWorkspaceMember(workspace.id, targetUserId);
+      setMembers((prev) => prev.filter((m) => m.id !== member.id && m.user_id !== targetUserId));
+    } catch (err) {
+      console.error("Failed to remove member:", err);
+    } finally {
+      setRemovingMemberId(null);
     }
   }
 
@@ -627,6 +646,22 @@ export default function WorkspaceMembers() {
                       >
                         {member.role || "member"}
                       </span>
+
+                      {canInvite && !memberIsOwner && (
+                        <button
+                          type="button"
+                          onClick={() => void handleRemoveMember(member)}
+                          disabled={removingMemberId === (member.user_id || member.id)}
+                          className="flex items-center gap-1.5 rounded-xl border border-rose-400/20 bg-rose-500/10 px-3.5 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
+                        >
+                          {removingMemberId === (member.user_id || member.id) ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <Trash2 size={13} />
+                          )}
+                          <span>Remove</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

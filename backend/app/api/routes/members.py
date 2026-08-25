@@ -9,7 +9,10 @@ from app.core.database import get_db
 from app.models.workspace import Workspace
 from app.models.workspace_membership import WorkspaceMembership
 from app.schemas.membership import MembershipResponse
-from app.services.membership import get_workspace_members
+from app.services.membership import (
+    get_workspace_members,
+    remove_workspace_member,
+)
 from app.api.permission import require_workspace_role
 
 
@@ -68,6 +71,52 @@ def list_workspace_members(
         )
         for member, user in rows
     ]
+
+
+@router.delete(
+    "/{workspace_id}/members/{target_user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def remove_member_from_workspace(
+    workspace_id: UUID,
+    target_user_id: UUID,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
+    current_membership = db.scalar(
+        select(WorkspaceMembership).where(
+            WorkspaceMembership.workspace_id == workspace_id,
+            WorkspaceMembership.user_id == current_user_id,
+        )
+    )
+
+    if not current_membership or current_membership.role not in {"owner", "admin"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only owners and admins can remove members",
+        )
+
+    try:
+        removed = remove_workspace_member(
+            db=db,
+            workspace_id=str(workspace_id),
+            target_user_id=str(target_user_id),
+        )
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(err),
+        )
+
+    if not removed:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Member not found in workspace",
+        )
+
+    return None
+
+
 @router.get(
     "/{workspace_id}/owner-test",
 )

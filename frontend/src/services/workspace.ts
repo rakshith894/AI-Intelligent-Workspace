@@ -98,6 +98,15 @@ export async function getWorkspaceMembers(
   return response.data;
 }
 
+export async function removeWorkspaceMember(
+  workspaceId: string,
+  targetUserId: string,
+): Promise<void> {
+  await api.delete(
+    `/api/v1/workspaces/${workspaceId}/members/${targetUserId}`,
+  );
+}
+
 /* ============================================================
    INVITE MEMBER
 ============================================================ */

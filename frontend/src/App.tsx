@@ -719,17 +719,15 @@ function Dashboard() {
 ============================================================ */
 
 function ProjectsRoute() {
-  const [workspace, setWorkspace] =
-    useState<Workspace | null>(null);
-
-  const [loading, setLoading] =
-    useState(true);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadWorkspace() {
       try {
         const data = await getMyWorkspaces();
-
+        setWorkspaces(data);
         if (data.length > 0) {
           setWorkspace(data[0]);
         }
@@ -743,7 +741,7 @@ function ProjectsRoute() {
       }
     }
 
-    loadWorkspace();
+    void loadWorkspace();
   }, []);
 
   if (loading) {
@@ -768,9 +766,31 @@ function ProjectsRoute() {
   }
 
   return (
-    <Projects
-      workspaceId={workspace.id}
-    />
+    <div className="space-y-4">
+      {workspaces.length > 1 && (
+        <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl">
+          <span className="text-xs text-white/40 font-medium">Select Workspace Projects:</span>
+          <div className="flex items-center gap-2 overflow-x-auto">
+            {workspaces.map((ws) => (
+              <button
+                key={ws.id}
+                type="button"
+                onClick={() => setWorkspace(ws)}
+                className={`rounded-xl px-3 py-1.5 text-xs font-medium transition ${
+                  workspace.id === ws.id
+                    ? "bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 font-semibold"
+                    : "bg-white/[0.04] text-white/60 hover:bg-white/[0.08] hover:text-white"
+                }`}
+              >
+                {ws.name} ({ws.role})
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Projects workspaceId={workspace.id} />
+    </div>
   );
 }
 
