@@ -26,15 +26,15 @@ class Settings(BaseSettings):
         "https://my-aii-intelligent-app.vercel.app",
     ]
 
-    # SMTP / Gmail Settings (fallback)
+    # SMTP / Gmail Settings
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587
-    smtp_user: str = ""
-    smtp_password: str = ""
-    emails_enabled: bool = False
-    frontend_url: str = "http://localhost:5173"
+    smtp_user: str = "rrakshith349@gmail.com"
+    smtp_password: str = "fevc bpis ukjr ucqs"
+    emails_enabled: bool = True
+    frontend_url: str = "https://my-aii-intelligent-app.vercel.app"
 
-    # Resend API (primary — inbox delivery, no spam)
+    # Resend API (disabled by default so Gmail SMTP can send to ANY recipient email)
     resend_api_key: str = ""
     resend_from_email: str = ""
     resend_from_domain: str = "resend.dev"
