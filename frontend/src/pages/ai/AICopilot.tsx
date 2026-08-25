@@ -20,6 +20,7 @@ import {
   Settings as SettingsIcon,
   ShieldAlert,
   Sparkles,
+  Trash2,
   User,
   X,
   Zap,
@@ -277,6 +278,20 @@ export default function AICopilot() {
   }
 
 
+  function handleClearChat() {
+    setMessages([
+      {
+        id: `welcome-${Date.now()}`,
+        sender: "assistant",
+        text: "Hello! I am your AI Workspace Copilot. I have real-time visibility into your deliverables, sprint velocity, and team capacity. You can ask me anything about your project codebase, tasks, architecture, or sprint strategy.",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        modelUsed: "workspace-grounded",
+      },
+    ]);
+    setSelectedFile(null);
+    setInput("");
+  }
+
   async function handleSend(queryText?: string) {
     const textToSend = (queryText || input).trim();
     if ((!textToSend && !selectedFile) || !workspace) return;
@@ -412,6 +427,18 @@ export default function AICopilot() {
               </button>
             );
           })}
+
+          {activeMode === "chat" && (
+            <button
+              type="button"
+              onClick={handleClearChat}
+              title="Clear chat history"
+              className="flex items-center gap-1.5 rounded-xl border border-rose-500/25 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/20 hover:text-rose-200"
+            >
+              <Trash2 size={13} className="text-rose-400" />
+              <span>Clear Chat</span>
+            </button>
+          )}
 
           <button
             type="button"
