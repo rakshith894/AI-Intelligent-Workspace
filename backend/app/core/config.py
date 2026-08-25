@@ -25,13 +25,18 @@ class Settings(BaseSettings):
         "http://127.0.0.1",
     ]
 
-    # SMTP / Gmail Settings
+    # SMTP / Gmail Settings (fallback)
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
     emails_enabled: bool = False
     frontend_url: str = "http://localhost:5173"
+
+    # Resend API (primary — inbox delivery, no spam)
+    resend_api_key: str = ""
+    resend_from_email: str = ""
+    resend_from_domain: str = "resend.dev"
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
