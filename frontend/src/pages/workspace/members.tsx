@@ -748,24 +748,35 @@ export default function WorkspaceMembers() {
                 <p className="mt-1 text-xs text-white/30">/{workspace.slug}</p>
               </div>
 
-              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2">
-                {isOwner ? (
-                  <>
-                    <Crown size={16} className="text-amber-300" />
-                    <span className="text-sm text-amber-200">Owner</span>
-                  </>
-                ) : (
-                  <>
-                    <ShieldCheck size={16} className="text-indigo-300" />
-                    <span className="text-sm capitalize text-white/60">
-                      {workspace.role || "Member"}
-                    </span>
-                  </>
-                )}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2">
+                  {isOwner ? (
+                    <>
+                      <Crown size={16} className="text-amber-300" />
+                      <span className="text-sm text-amber-200 font-semibold">Owner</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck size={16} className="text-indigo-300" />
+                      <span className="text-sm capitalize text-white/60">
+                        {workspace.role || "Member"}
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                <a
+                  href="/settings"
+                  className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium text-white/70 hover:bg-white/[0.08] hover:text-white transition"
+                >
+                  <span>Workspace Settings & Delete</span>
+                  <ExternalLink size={12} />
+                </a>
               </div>
             </div>
           </section>
         )}
+
 
         {/* PENDING INVITATIONS CARD (Outgoing Invites) */}
         {canInvite && pendingInvitations.length > 0 && (

@@ -17,6 +17,10 @@ import {
   Sparkles,
   User,
   Users,
+  Trash2,
+  Edit3,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -26,7 +30,13 @@ import {
   type NotificationPreferences,
 } from "../../services/notification-preferences";
 import { getMe, logout, type UserProfile } from "../../services/auth";
-import { getMyWorkspaces, type Workspace } from "../../services/workspace";
+import {
+  getMyWorkspaces,
+  updateWorkspace,
+  deleteWorkspace,
+  leaveWorkspace,
+  type Workspace,
+} from "../../services/workspace";
 import {
   getGitHubStatus,
   connectGitHub,
@@ -109,6 +119,330 @@ function PreferenceRow({
 }
 
 /* ============================================================
+   RENAME WORKSPACE MODAL
+============================================================ */
+
+function RenameWorkspaceModal({
+  workspace,
+  onClose,
+  onRenamed,
+}: {
+  workspace: Workspace;
+  onClose: () => void;
+  onRenamed: (updated: Workspace) => void;
+}) {
+  const [name, setName] = useState(workspace.name);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const clean = name.trim();
+    if (clean.length < 2) {
+      setError("Workspace name must be at least 2 characters.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError("");
+      const updated = await updateWorkspace(workspace.id, clean);
+      onRenamed(updated);
+    } catch (err: unknown) {
+      console.error(err);
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(msg || "Failed to update workspace name.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 backdrop-blur-md">
+      <div className="w-full max-w-md rounded-[28px] border border-white/10 bg-[#0c0d18] p-7 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500/10">
+              <Edit3 size={20} className="text-indigo-300" />
+            </div>
+            <h2 className="mt-5 text-2xl font-semibold text-white">Rename Workspace</h2>
+            <p className="mt-1.5 text-sm text-white/40">
+              Update the display name of your workspace.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-xl p-2 text-white/30 transition hover:bg-white/[0.06] hover:text-white disabled:opacity-50"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          {error && (
+            <div className="rounded-2xl border border-red-400/20 bg-red-400/[0.05] px-4 py-3 text-sm text-red-300">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-white/70">
+              Workspace Name
+            </label>
+            <input
+              type="text"
+              required
+              minLength={2}
+              maxLength={255}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={saving}
+              className="h-12 w-full rounded-2xl border border-white/10 bg-black/20 px-4 text-sm text-white outline-none transition focus:border-indigo-400/50 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-50"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-medium transition hover:bg-white/[0.08] disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-indigo-500/20 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   DELETE WORKSPACE MODAL
+============================================================ */
+
+function DeleteWorkspaceModal({
+  workspace,
+  onClose,
+  onDeleted,
+}: {
+  workspace: Workspace;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [confirmName, setConfirmName] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleDelete() {
+    try {
+      setDeleting(true);
+      setError("");
+      await deleteWorkspace(workspace.id);
+      onDeleted();
+    } catch (err: unknown) {
+      console.error(err);
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(msg || "Failed to delete workspace.");
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-md">
+      <div className="w-full max-w-md rounded-[28px] border border-rose-500/30 bg-[#0c0d18] p-7 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-rose-500/30 bg-rose-500/10">
+              <AlertTriangle size={22} className="text-rose-400" />
+            </div>
+            <h2 className="mt-5 text-2xl font-semibold text-white">Delete Workspace</h2>
+            <p className="mt-1.5 text-sm text-white/40">
+              This action is permanent and cannot be undone.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={deleting}
+            className="rounded-xl p-2 text-white/30 transition hover:bg-white/[0.06] hover:text-white disabled:opacity-50"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-rose-500/20 bg-rose-500/[0.05] p-4 text-xs text-rose-300 leading-5">
+          Deleting <strong className="text-white font-bold">{workspace.name}</strong> will permanently remove all associated projects, tasks, comments, activities, attachments, and invitations.
+        </div>
+
+        {error && (
+          <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/[0.05] px-4 py-3 text-sm text-red-300">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-4">
+          <label className="mb-2 block text-xs font-medium text-white/60">
+            Type <span className="font-bold text-white font-mono">{workspace.name}</span> to confirm:
+          </label>
+          <input
+            type="text"
+            value={confirmName}
+            onChange={(e) => setConfirmName(e.target.value)}
+            placeholder={workspace.name}
+            disabled={deleting}
+            className="h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3.5 text-xs text-white outline-none focus:border-rose-400"
+          />
+        </div>
+
+        <div className="mt-6 flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={deleting}
+            className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium transition hover:bg-white/[0.08] disabled:opacity-50"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting || confirmName.trim() !== workspace.name.trim()}
+            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 px-4 py-3 text-sm font-semibold text-white shadow-xl shadow-rose-600/20 transition hover:scale-[1.01] disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {deleting ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>Deleting...</span>
+              </>
+            ) : (
+              <>
+                <Trash2 size={16} />
+                <span>Delete Workspace</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   LEAVE WORKSPACE MODAL
+============================================================ */
+
+function LeaveWorkspaceModal({
+  workspace,
+  onClose,
+  onLeft,
+}: {
+  workspace: Workspace;
+  onClose: () => void;
+  onLeft: () => void;
+}) {
+  const [leaving, setLeaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleLeave() {
+    try {
+      setLeaving(true);
+      setError("");
+      await leaveWorkspace(workspace.id);
+      onLeft();
+    } catch (err: unknown) {
+      console.error(err);
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(msg || "Failed to leave workspace.");
+      setLeaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-md">
+      <div className="w-full max-w-md rounded-[28px] border border-amber-500/30 bg-[#0c0d18] p-7 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10">
+              <LogOut size={22} className="text-amber-400" />
+            </div>
+            <h2 className="mt-5 text-2xl font-semibold text-white">Leave Workspace</h2>
+            <p className="mt-1.5 text-sm text-white/40">
+              You will lose access to all projects and tasks in this workspace.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={leaving}
+            className="rounded-xl p-2 text-white/30 transition hover:bg-white/[0.06] hover:text-white disabled:opacity-50"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-amber-500/20 bg-amber-500/[0.05] p-4 text-xs text-amber-300 leading-5">
+          Are you sure you want to leave <strong className="text-white font-bold">{workspace.name}</strong>? You will need an invitation link to rejoin.
+        </div>
+
+        {error && (
+          <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/[0.05] px-4 py-3 text-sm text-red-300">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-6 flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={leaving}
+            className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium transition hover:bg-white/[0.08] disabled:opacity-50"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={handleLeave}
+            disabled={leaving}
+            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 px-4 py-3 text-sm font-semibold text-white shadow-xl shadow-amber-600/20 transition hover:scale-[1.01] disabled:opacity-50"
+          >
+            {leaving ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>Leaving...</span>
+              </>
+            ) : (
+              <>
+                <LogOut size={16} />
+                <span>Leave Workspace</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
    SETTINGS PAGE
 ============================================================ */
 
@@ -125,12 +459,18 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
+  /* Modals */
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
 
   /* GitHub State */
   const [githubStatus, setGithubStatus] = useState<GitHubStatus | null>(null);
@@ -142,37 +482,40 @@ export default function SettingsPage() {
      LOAD PREFERENCES & USER PROFILE
   ============================================================ */
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true);
-        setError("");
-        const [prefsData, profileData, workspacesData, ghStatus] = await Promise.all([
-          getNotificationPreferences().catch((err) => {
-            console.warn("Could not fetch preferences from server, using defaults:", err);
-            return DEFAULT_PREFERENCES;
-          }),
-          getMe().catch(() => null),
-          getMyWorkspaces().catch(() => []),
-          getGitHubStatus().catch(() => null),
-        ]);
-        setPrefs(prefsData || DEFAULT_PREFERENCES);
-        setUserProfile(profileData);
-        if (workspacesData && workspacesData.length > 0) {
-          setWorkspace(workspacesData[0]);
-        }
-        setGithubStatus(ghStatus);
-        if (ghStatus?.is_connected) {
-          getGitHubRepos().then(setGithubRepos).catch(() => []);
-        }
-      } catch (err) {
-        console.error(err);
-        setPrefs(DEFAULT_PREFERENCES);
-      } finally {
-        setLoading(false);
+  async function loadData() {
+    try {
+      setLoading(true);
+      setError("");
+      const [prefsData, profileData, workspacesData, ghStatus] = await Promise.all([
+        getNotificationPreferences().catch((err) => {
+          console.warn("Could not fetch preferences from server, using defaults:", err);
+          return DEFAULT_PREFERENCES;
+        }),
+        getMe().catch(() => null),
+        getMyWorkspaces().catch(() => []),
+        getGitHubStatus().catch(() => null),
+      ]);
+      setPrefs(prefsData || DEFAULT_PREFERENCES);
+      setUserProfile(profileData);
+      setWorkspaces(workspacesData || []);
+      if (workspacesData && workspacesData.length > 0) {
+        setWorkspace(workspacesData[0]);
+      } else {
+        setWorkspace(null);
       }
+      setGithubStatus(ghStatus);
+      if (ghStatus?.is_connected) {
+        getGitHubRepos().then(setGithubRepos).catch(() => []);
+      }
+    } catch (err) {
+      console.error(err);
+      setPrefs(DEFAULT_PREFERENCES);
+    } finally {
+      setLoading(false);
     }
+  }
 
+  useEffect(() => {
     void loadData();
   }, []);
 
@@ -267,6 +610,8 @@ export default function SettingsPage() {
       </div>
     );
   }
+
+  const isOwner = workspace?.role?.toLowerCase() === "owner";
 
   /* ============================================================
      PAGE
@@ -562,19 +907,19 @@ export default function SettingsPage() {
         )}
       </section>
 
-      {/* 3. ACTIVE WORKSPACE CONTROLS */}
+      {/* 4. WORKSPACE MANAGEMENT & DANGER ZONE */}
       {workspace && (
-        <section className="rounded-[28px] border border-white/[0.08] bg-white/[0.03] p-6 shadow-xl shadow-black/10 backdrop-blur-2xl">
-          <div className="mb-5 flex items-center justify-between">
+        <section className="rounded-[28px] border border-white/[0.08] bg-white/[0.03] p-6 shadow-xl shadow-black/10 backdrop-blur-2xl space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-400/10 text-amber-300">
                 <Crown size={18} />
               </div>
 
               <div>
-                <h2 className="text-base font-semibold text-white">Active Workspace</h2>
+                <h2 className="text-base font-semibold text-white">Workspace Configuration</h2>
                 <p className="mt-0.5 text-xs text-white/35">
-                  Workspace controls and administrative shortcuts.
+                  Manage name, members, and delete or leave workspaces.
                 </p>
               </div>
             </div>
@@ -584,10 +929,46 @@ export default function SettingsPage() {
             </span>
           </div>
 
+          {/* WORKSPACE SWITCHER IF MULTIPLE */}
+          {workspaces.length > 1 && (
+            <div className="space-y-2 border-b border-white/[0.06] pb-4">
+              <p className="text-xs text-white/40">Select workspace to configure:</p>
+              <div className="flex flex-wrap gap-2">
+                {workspaces.map((ws) => (
+                  <button
+                    key={ws.id}
+                    type="button"
+                    onClick={() => setWorkspace(ws)}
+                    className={`rounded-xl px-3 py-1.5 text-xs font-medium transition ${
+                      workspace.id === ws.id
+                        ? "bg-indigo-500/20 text-indigo-200 border border-indigo-400/40 font-semibold"
+                        : "bg-white/[0.04] text-white/60 border border-white/10 hover:bg-white/[0.08] hover:text-white"
+                    }`}
+                  >
+                    {ws.name} ({ws.role})
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* DETAILS */}
           <div className="space-y-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 text-xs">
             <div className="flex items-center justify-between border-b border-white/[0.04] pb-3">
               <span className="text-white/40">Workspace Name</span>
-              <span className="font-semibold text-white">{workspace.name}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-white">{workspace.name}</span>
+                {isOwner && (
+                  <button
+                    type="button"
+                    onClick={() => setRenameModalOpen(true)}
+                    className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.05] px-2 py-1 text-[11px] text-indigo-300 hover:bg-white/[0.1]"
+                  >
+                    <Edit3 size={11} />
+                    <span>Rename</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center justify-between">
@@ -603,7 +984,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2.5">
+          <div className="flex flex-wrap gap-2.5">
             <button
               type="button"
               onClick={() => navigate("/workspace/members")}
@@ -613,19 +994,66 @@ export default function SettingsPage() {
               <span>Manage Members</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => navigate("/workspace/owner-access")}
-              className="flex items-center gap-1.5 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3.5 py-2 text-xs font-semibold text-amber-300 transition hover:bg-amber-400/20"
-            >
-              <Shield size={14} />
-              <span>Owner Access Hub</span>
-            </button>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => navigate("/workspace/owner-access")}
+                className="flex items-center gap-1.5 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3.5 py-2 text-xs font-semibold text-amber-300 transition hover:bg-amber-400/20"
+              >
+                <Shield size={14} />
+                <span>Owner Access Hub</span>
+              </button>
+            )}
+          </div>
+
+          {/* DANGER ZONE */}
+          <div className="border-t border-white/[0.06] pt-5">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-rose-400 mb-3">
+              Danger Zone
+            </h3>
+
+            {isOwner ? (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/[0.03] p-4">
+                <div>
+                  <p className="text-xs font-semibold text-rose-300">Delete Workspace</p>
+                  <p className="mt-0.5 text-[11px] text-white/40">
+                    Permanently delete '{workspace.name}' and all its projects, tasks, and members.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setDeleteModalOpen(true)}
+                  className="flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-rose-500/20 px-4 py-2 text-xs font-semibold text-rose-300 border border-rose-400/30 transition hover:bg-rose-500/30 hover:text-white"
+                >
+                  <Trash2 size={13} />
+                  <span>Delete Workspace</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/[0.03] p-4">
+                <div>
+                  <p className="text-xs font-semibold text-amber-300">Leave Workspace</p>
+                  <p className="mt-0.5 text-[11px] text-white/40">
+                    Leave '{workspace.name}'. You will need an invite to rejoin.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setLeaveModalOpen(true)}
+                  className="flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-amber-500/20 px-4 py-2 text-xs font-semibold text-amber-300 border border-amber-400/30 transition hover:bg-amber-500/30 hover:text-white"
+                >
+                  <LogOut size={13} />
+                  <span>Leave Workspace</span>
+                </button>
+              </div>
+            )}
           </div>
         </section>
       )}
 
-      {/* 4. SIGN OUT */}
+      {/* 5. SIGN OUT */}
       <section className="rounded-[28px] border border-rose-500/20 bg-rose-500/[0.03] p-6 shadow-xl backdrop-blur-2xl">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -645,6 +1073,47 @@ export default function SettingsPage() {
           </button>
         </div>
       </section>
+
+      {/* RENAME MODAL */}
+      {renameModalOpen && workspace && (
+        <RenameWorkspaceModal
+          workspace={workspace}
+          onClose={() => setRenameModalOpen(false)}
+          onRenamed={(updated) => {
+            setRenameModalOpen(false);
+            setWorkspace(updated);
+            setWorkspaces((prev) => prev.map((w) => (w.id === updated.id ? { ...w, name: updated.name } : w)));
+            setSuccessMessage("Workspace renamed successfully.");
+            setTimeout(() => setSuccessMessage(""), 2500);
+          }}
+        />
+      )}
+
+      {/* DELETE MODAL */}
+      {deleteModalOpen && workspace && (
+        <DeleteWorkspaceModal
+          workspace={workspace}
+          onClose={() => setDeleteModalOpen(false)}
+          onDeleted={() => {
+            setDeleteModalOpen(false);
+            setSuccessMessage(`Workspace '${workspace.name}' was deleted.`);
+            void loadData();
+          }}
+        />
+      )}
+
+      {/* LEAVE MODAL */}
+      {leaveModalOpen && workspace && (
+        <LeaveWorkspaceModal
+          workspace={workspace}
+          onClose={() => setLeaveModalOpen(false)}
+          onLeft={() => {
+            setLeaveModalOpen(false);
+            setSuccessMessage(`Left workspace '${workspace.name}'.`);
+            void loadData();
+          }}
+        />
+      )}
     </div>
   );
 }

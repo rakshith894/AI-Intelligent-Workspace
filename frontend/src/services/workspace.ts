@@ -84,6 +84,30 @@ export async function createWorkspace(
   };
 }
 
+export async function updateWorkspace(
+  workspaceId: string,
+  name: string,
+): Promise<Workspace> {
+  const response = await api.patch<Workspace>(
+    `/api/v1/workspaces/${workspaceId}`,
+    { name },
+  );
+  return response.data;
+}
+
+export async function deleteWorkspace(
+  workspaceId: string,
+): Promise<void> {
+  await api.delete(`/api/v1/workspaces/${workspaceId}`);
+}
+
+export async function leaveWorkspace(
+  workspaceId: string,
+): Promise<void> {
+  await api.post(`/api/v1/workspaces/${workspaceId}/leave`);
+}
+
+
 /* ============================================================
    GET WORKSPACE MEMBERS
 ============================================================ */
