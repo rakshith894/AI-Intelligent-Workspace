@@ -256,46 +256,74 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
         })}
 
         {/* TEAM MANAGEMENT */}
-        {!collapsed && (
-          <div className="pt-5">
+        <div className={collapsed ? "mt-3 space-y-1" : "pt-5 space-y-1"}>
+          {!collapsed && (
             <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">
               Team Management
             </p>
+          )}
 
-            <NavLink
-              to="/workspace/members"
-              className={({ isActive }) => `
-                group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm transition
-                ${
-                  isActive
-                    ? "bg-indigo-500/[0.12] text-indigo-300 font-medium"
-                    : "text-gray-400 hover:bg-white/[0.045] hover:text-white"
-                }
-              `}
-            >
-              <Users size={18} className="shrink-0" />
-              <span className="flex-1">Workspace Members</span>
-            </NavLink>
+          <NavLink
+            to="/workspace/members"
+            title="Workspace Members"
+            className={({ isActive }) => `
+              group relative flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm transition-all
+              ${
+                isActive
+                  ? "bg-indigo-500/[0.12] text-indigo-300 font-medium"
+                  : "text-gray-400 hover:bg-white/[0.045] hover:text-white"
+              }
+              ${collapsed ? "justify-center" : ""}
+            `}
+          >
+            {({ isActive }) => (
+              <>
+                {isActive && (
+                  <motion.div
+                    layoutId="active-nav"
+                    className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-indigo-400 shadow-[0_0_12px_rgba(129,140,248,0.8)]"
+                  />
+                )}
+                <Users size={18} className={`shrink-0 ${isActive ? "text-indigo-300" : "text-gray-500 group-hover:text-gray-300"}`} />
+                {!collapsed && <span className="flex-1 text-left">Workspace Members</span>}
+              </>
+            )}
+          </NavLink>
 
-            <NavLink
-              to="/workspace/owner-access"
-              className={({ isActive }) => `
-                group mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm transition
-                ${
-                  isActive
-                    ? "bg-indigo-500/[0.12] text-indigo-300 font-medium"
-                    : "text-gray-400 hover:bg-white/[0.045] hover:text-white"
-                }
-              `}
-            >
-              <UserCog size={18} className="shrink-0" />
-              <span className="flex-1">Owner Access</span>
-              <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-[8px] font-semibold uppercase tracking-wider text-amber-300">
-                Owner
-              </span>
-            </NavLink>
-          </div>
-        )}
+          <NavLink
+            to="/workspace/owner-access"
+            title="Owner Access"
+            className={({ isActive }) => `
+              group relative flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm transition-all
+              ${
+                isActive
+                  ? "bg-indigo-500/[0.12] text-indigo-300 font-medium"
+                  : "text-gray-400 hover:bg-white/[0.045] hover:text-white"
+              }
+              ${collapsed ? "justify-center" : ""}
+            `}
+          >
+            {({ isActive }) => (
+              <>
+                {isActive && (
+                  <motion.div
+                    layoutId="active-nav"
+                    className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-indigo-400 shadow-[0_0_12px_rgba(129,140,248,0.8)]"
+                  />
+                )}
+                <UserCog size={18} className={`shrink-0 ${isActive ? "text-amber-300" : "text-gray-500 group-hover:text-gray-300"}`} />
+                {!collapsed && (
+                  <>
+                    <span className="flex-1 text-left">Owner Access</span>
+                    <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-[8px] font-semibold uppercase tracking-wider text-amber-300">
+                      Owner
+                    </span>
+                  </>
+                )}
+              </>
+            )}
+          </NavLink>
+        </div>
 
 
         {/* AI SECTION — always visible, even when collapsed */}

@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   BellOff,
   CheckCheck,
@@ -11,6 +12,7 @@ import {
   MessageSquare,
   Sparkles,
   RefreshCw,
+  ArrowRight,
 } from "lucide-react";
 
 import {
@@ -68,6 +70,7 @@ function NotificationIcon({ type }: { type: string }) {
 type FilterType = "all" | "unread" | "read";
 
 export default function Notifications() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [total, setTotal] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -79,6 +82,23 @@ export default function Notifications() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+
+  function handleNotificationClick(notification: Notification) {
+    if (!notification.is_read) {
+      void handleMarkRead(notification);
+    }
+
+    if (
+      notification.type === "workspace_invitation" ||
+      notification.type === "invitation"
+    ) {
+      navigate("/workspace/members");
+    } else if (notification.task_id) {
+      navigate("/tasks");
+    } else {
+      navigate("/");
+    }
+  }
 
   /* ============================================================
      LOAD NOTIFICATIONS
@@ -338,93 +358,130 @@ export default function Notifications() {
           </div>
         ) : (
           <div className="divide-y divide-white/[0.06]">
-            {notifications.map((notification) => (
-              <div
-                key={notification.id}
-                className={`group relative flex items-start gap-4 p-5 transition-colors ${
-                  !notification.is_read
-                    ? "bg-indigo-500/[0.03]"
-                    : "hover:bg-white/[0.02]"
-                }`}
-              >
-                {/* Unread indicator */}
-                {!notification.is_read && (
-                  <span className="absolute left-0 top-1/2 h-8 w-[3px] -translate-y-1/2 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.7)]" />
-                )}
+            {notifications.map((notification) => {
+              const isInvitation =
+                notification.type === "workspace_invitation" ||
+                notification.type === "invitation";
 
-                <NotificationIcon type={notification.type} />
+              return (
+                <div
+                  key={notification.id}
+                  onClick={() => handleNotificationClick(notification)}
+                  className={`group relative flex items-start gap-4 p-5 transition-colors cursor-pointer ${
+                    !notification.is_read
+                      ? "bg-indigo-500/[0.03] hover:bg-indigo-500/[0.06]"
+                      : "hover:bg-white/[0.04]"
+                  }`}
+                >
+                  {/* Unread indicator */}
+                  {!notification.is_read && (
+                    <span className="absolute left-0 top-1/2 h-8 w-[3px] -translate-y-1/2 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.7)]" />
+                  )}
 
-                {/* CONTENT */}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p
-                        className={`text-sm font-medium ${
-                          notification.is_read
-                            ? "text-white/60"
-                            : "text-white"
-                        }`}
-                      >
-                        {notification.title}
-                      </p>
+                  <NotificationIcon type={notification.type} />
 
-                      <p className="mt-1 text-xs leading-5 text-white/35">
-                        {notification.message}
-                      </p>
-                    </div>
+                  {/* CONTENT */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p
+                          className={`text-sm font-medium ${
+                            notification.is_read
+                              ? "text-white/60"
+                              : "text-white font-semibold"
+                          }`}
+                        >
+                          {notification.title}
+                        </p>
 
-                    {/* ACTIONS */}
-                    <div className="flex shrink-0 items-center gap-1 opacity-0 transition group-hover:opacity-100">
-                      {!notification.is_read && (
+                        <p className="mt-1 text-xs leading-5 text-white/45">
+                          {notification.message}
+                        </p>
+                      </div>
+
+                      {/* ACTIONS */}
+                      <div className="flex shrink-0 items-center gap-1 opacity-0 transition group-hover:opacity-100">
+                        {!notification.is_read && (
+                          <button
+                            type="button"
+                            title="Mark as read"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleMarkRead(notification);
+                            }}
+                            disabled={markingId === notification.id}
+                            className="rounded-lg p-1.5 text-white/30 transition hover:bg-indigo-500/10 hover:text-indigo-300 disabled:opacity-50"
+                          >
+                            {markingId === notification.id ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <CheckCheck size={14} />
+                            )}
+                          </button>
+                        )}
+
                         <button
                           type="button"
-                          title="Mark as read"
-                          onClick={() => handleMarkRead(notification)}
-                          disabled={markingId === notification.id}
-                          className="rounded-lg p-1.5 text-white/30 transition hover:bg-indigo-500/10 hover:text-indigo-300 disabled:opacity-50"
+                          title="Delete"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleDelete(notification.id);
+                          }}
+                          disabled={deletingId === notification.id}
+                          className="rounded-lg p-1.5 text-white/30 transition hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50"
                         >
-                          {markingId === notification.id ? (
+                          {deletingId === notification.id ? (
                             <Loader2 size={14} className="animate-spin" />
                           ) : (
-                            <CheckCheck size={14} />
+                            <Trash2 size={14} />
                           )}
                         </button>
-                      )}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className="rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-0.5 text-[10px] capitalize text-white/30">
+                          {notification.type.replace(/_/g, " ")}
+                        </span>
+
+                        <span className="text-[11px] text-white/30">
+                          {formatDate(notification.created_at)}
+                        </span>
+
+                        {!notification.is_read && (
+                          <span className="text-[10px] font-semibold text-indigo-400">
+                            NEW
+                          </span>
+                        )}
+                      </div>
 
                       <button
                         type="button"
-                        title="Delete"
-                        onClick={() => handleDelete(notification.id)}
-                        disabled={deletingId === notification.id}
-                        className="rounded-lg p-1.5 text-white/30 transition hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleNotificationClick(notification);
+                        }}
+                        className={`flex items-center gap-1.5 rounded-xl px-3 py-1 text-xs font-medium transition ${
+                          isInvitation
+                            ? "bg-indigo-500/20 text-indigo-200 hover:bg-indigo-500/30"
+                            : "bg-white/[0.05] text-white/70 hover:bg-white/[0.1] hover:text-white"
+                        }`}
                       >
-                        {deletingId === notification.id ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : (
-                          <Trash2 size={14} />
-                        )}
+                        <span>
+                          {isInvitation
+                            ? "View Workspace Members"
+                            : notification.task_id
+                              ? "View Task"
+                              : "View"}
+                        </span>
+                        <ArrowRight size={12} />
                       </button>
                     </div>
                   </div>
-
-                  <div className="mt-2 flex items-center gap-3">
-                    <span className="rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-0.5 text-[10px] capitalize text-white/25">
-                      {notification.type.replace(/_/g, " ")}
-                    </span>
-
-                    <span className="text-[11px] text-white/25">
-                      {formatDate(notification.created_at)}
-                    </span>
-
-                    {!notification.is_read && (
-                      <span className="text-[10px] font-semibold text-indigo-400">
-                        NEW
-                      </span>
-                    )}
-                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
