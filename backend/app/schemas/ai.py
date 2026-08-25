@@ -40,6 +40,16 @@ class DailyStandupResponse(BaseModel):
     summary_markdown: str
 
 
+class SprintRetrospectiveResponse(BaseModel):
+    generated_at: datetime
+    workspace_name: str
+    what_went_well: list[str]
+    what_could_be_improved: list[str]
+    action_items: list[str]
+    velocity_summary: dict[str, Any]
+    summary_markdown: str
+
+
 class AutoAssignRequest(BaseModel):
     task_title: str
     task_priority: str = "medium"

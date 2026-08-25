@@ -3,16 +3,20 @@ import {
   AlertTriangle,
   ArrowRight,
   Bot,
+  Check,
   CheckCircle2,
   Clock,
   Copy,
   Cpu,
+  Download,
   FileText,
   HelpCircle,
   Image as ImageIcon,
   Key,
   Loader2,
   MessageSquare,
+  Mic,
+  MicOff,
   Paperclip,
   RefreshCw,
   Search,
@@ -20,7 +24,9 @@ import {
   Settings as SettingsIcon,
   ShieldAlert,
   Sparkles,
+  Target,
   Trash2,
+  Trophy,
   User,
   X,
   Zap,
@@ -33,10 +39,12 @@ import {
   chatAI,
   getAIDailyStandup,
   getAISprintAnalysis,
+  getAISprintRetrospective,
   searchAIKnowledge,
   type DailyStandupResponse,
   type KnowledgeSearchResponse,
   type SprintAnalysisResponse,
+  type SprintRetrospectiveResponse,
 } from "../../services/ai";
 
 interface ChatMessage {
@@ -58,7 +66,7 @@ interface ChatMessage {
   };
 }
 
-type AIMode = "chat" | "standup" | "sprint" | "knowledge";
+type AIMode = "chat" | "standup" | "sprint" | "retrospective" | "knowledge";
 
 export default function AICopilot() {
   const navigate = useNavigate();
@@ -108,10 +116,98 @@ export default function AICopilot() {
   const [sprintAnalysis, setSprintAnalysis] = useState<SprintAnalysisResponse | null>(null);
   const [loadingSprint, setLoadingSprint] = useState(false);
 
+  // Retrospective Agent State
+  const [retrospective, setRetrospective] = useState<SprintRetrospectiveResponse | null>(null);
+  const [loadingRetrospective, setLoadingRetrospective] = useState(false);
+  const [copiedRetrospective, setCopiedRetrospective] = useState(false);
+
   // Knowledge Base State
   const [knowledgeQuery, setKnowledgeQuery] = useState("");
   const [knowledgeResult, setKnowledgeResult] = useState<KnowledgeSearchResponse | null>(null);
   const [searchingKnowledge, setSearchingKnowledge] = useState(false);
+
+  // Voice & Message Copy State
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
+
+  // Setup Web Speech API
+  useEffect(() => {
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRec) {
+      setSpeechSupported(true);
+      const rec = new SpeechRec();
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.lang = "en-US";
+
+      rec.onresult = (event: any) => {
+        let transcript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript) {
+          setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        }
+      };
+
+      rec.onend = () => {
+        setIsListening(false);
+      };
+
+      rec.onerror = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = rec;
+    }
+  }, []);
+
+  function toggleListening() {
+    if (!recognitionRef.current) return;
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  }
+
+  function copyMessage(id: string, text: string) {
+    void navigator.clipboard.writeText(text);
+    setCopiedMessageId(id);
+    setTimeout(() => setCopiedMessageId(null), 2000);
+  }
+
+  function handleExportChat() {
+    if (messages.length === 0) return;
+    const wsTitle = workspace?.name || "Workspace";
+    let md = `# 🤖 AI Copilot Conversation — ${wsTitle}\n**Exported:** ${new Date().toLocaleString()}\n\n---\n\n`;
+    messages.forEach((m) => {
+      const role = m.sender === "user" ? "👤 **User**" : `🤖 **AI Copilot** (${m.modelUsed || "assistant"})`;
+      md += `### ${role} — *${m.timestamp}*\n\n`;
+      if (m.attachment) {
+        md += `*📎 Attached [${m.attachment.isImage ? "Photo" : "File"}]: ${m.attachment.name}*\n\n`;
+      }
+      md += `${m.text}\n\n---\n\n`;
+    });
+
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ai-copilot-chat-${new Date().toISOString().slice(0, 10)}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
 
   useEffect(() => {
     async function init() {
@@ -198,6 +294,20 @@ export default function AICopilot() {
       console.error(err);
     } finally {
       setLoadingSprint(false);
+    }
+  }
+
+  /* Load Sprint Retrospective */
+  async function loadRetrospectiveReport() {
+    if (!workspace) return;
+    try {
+      setLoadingRetrospective(true);
+      const data = await getAISprintRetrospective(workspace.id);
+      setRetrospective(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingRetrospective(false);
     }
   }
 
@@ -403,6 +513,7 @@ export default function AICopilot() {
             { id: "chat", label: "Copilot Chat", icon: MessageSquare },
             { id: "standup", label: "Daily Standup", icon: FileText },
             { id: "sprint", label: "Sprint Diagnostics", icon: Zap },
+            { id: "retrospective", label: "Retrospective", icon: Trophy },
             { id: "knowledge", label: "Knowledge Search", icon: Search },
           ].map((mode) => {
             const Icon = mode.icon;
@@ -415,6 +526,7 @@ export default function AICopilot() {
                   setActiveMode(mode.id as AIMode);
                   if (mode.id === "standup" && !standup) void loadStandupReport();
                   if (mode.id === "sprint" && !sprintAnalysis) void loadSprintDiagnostics();
+                  if (mode.id === "retrospective" && !retrospective) void loadRetrospectiveReport();
                 }}
                 className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
                   active
@@ -429,15 +541,27 @@ export default function AICopilot() {
           })}
 
           {activeMode === "chat" && (
-            <button
-              type="button"
-              onClick={handleClearChat}
-              title="Clear chat history"
-              className="flex items-center gap-1.5 rounded-xl border border-rose-500/25 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/20 hover:text-rose-200"
-            >
-              <Trash2 size={13} className="text-rose-400" />
-              <span>Clear Chat</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={handleExportChat}
+                title="Export conversation to Markdown file"
+                className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+              >
+                <Download size={13} className="text-cyan-300" />
+                <span className="hidden md:inline">Export</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearChat}
+                title="Clear chat history"
+                className="flex items-center gap-1.5 rounded-xl border border-rose-500/25 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/20 hover:text-rose-200"
+              >
+                <Trash2 size={13} className="text-rose-400" />
+                <span>Clear</span>
+              </button>
+            </>
           )}
 
           <button
@@ -492,10 +616,30 @@ export default function AICopilot() {
                         : "border border-white/[0.08] bg-white/[0.04] text-white/90"
                     }`}
                   >
-                    {message.sender === "assistant" && message.modelUsed && (
-                      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold text-indigo-300">
-                        <Cpu size={12} />
-                        <span>{message.modelUsed}</span>
+                    {message.sender === "assistant" && (
+                      <div className="mb-2 flex items-center justify-between gap-2 border-b border-white/[0.06] pb-1.5">
+                        <div className="flex items-center gap-1.5 text-[10px] font-semibold text-indigo-300">
+                          <Cpu size={12} />
+                          <span>{message.modelUsed || "workspace-ai"}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => copyMessage(message.id, message.text)}
+                          title="Copy response to clipboard"
+                          className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-white/50 transition hover:bg-white/10 hover:text-white"
+                        >
+                          {copiedMessageId === message.id ? (
+                            <>
+                              <Check size={11} className="text-emerald-400" />
+                              <span className="text-emerald-400 font-semibold">Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={11} />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
                       </div>
                     )}
 
@@ -639,9 +783,29 @@ export default function AICopilot() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onPaste={handlePaste}
-              placeholder={selectedFile ? `Ask AI about ${selectedFile.name}...` : "Ask AI Copilot… or drag & drop / Ctrl+V to paste an image"}
+              placeholder={
+                isListening
+                  ? "🎙️ Listening... Speak now..."
+                  : selectedFile
+                  ? `Ask AI about ${selectedFile.name}...`
+                  : "Ask AI Copilot… or click mic / paste / drag image"
+              }
               className="h-10 flex-1 bg-transparent px-2 text-sm text-white outline-none placeholder:text-white/30"
             />
+            {speechSupported && (
+              <button
+                type="button"
+                onClick={toggleListening}
+                title={isListening ? "Stop listening" : "Voice dictation (Speak to AI Copilot)"}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition ${
+                  isListening
+                    ? "border-rose-500/60 bg-rose-500/20 text-rose-300 animate-pulse shadow-[0_0_15px_rgba(244,63,94,0.4)]"
+                    : "border-white/10 bg-white/[0.04] text-white/70 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                {isListening ? <MicOff size={16} className="text-rose-400" /> : <Mic size={16} />}
+              </button>
+            )}
             <button
               type="submit"
               disabled={(!input.trim() && !selectedFile) || isTyping}
@@ -846,7 +1010,142 @@ export default function AICopilot() {
         </div>
       )}
 
-      {/* MODE 4: RAG & KNOWLEDGE BASE SEARCH */}
+      {/* MODE 4: SPRINT RETROSPECTIVE AGENT */}
+      {activeMode === "retrospective" && (
+        <div className="flex-1 overflow-y-auto space-y-6 rounded-[28px] border border-white/[0.08] bg-white/[0.03] p-7 backdrop-blur-2xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-white">Autonomous Sprint Retrospective Agent</h2>
+              <p className="text-xs text-white/40">Synthesizes sprint delivery metrics, team accomplishments, bottlenecks, and forward action items.</p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={loadRetrospectiveReport}
+                disabled={loadingRetrospective}
+                className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-white/[0.08]"
+              >
+                <RefreshCw size={13} className={loadingRetrospective ? "animate-spin" : ""} />
+                <span>Regenerate</span>
+              </button>
+
+              {retrospective && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(retrospective.summary_markdown);
+                    setCopiedRetrospective(true);
+                    setTimeout(() => setCopiedRetrospective(false), 2000);
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl bg-indigo-500/20 px-3.5 py-2 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-500/30"
+                >
+                  <Copy size={13} />
+                  <span>{copiedRetrospective ? "Copied to Clipboard!" : "Copy Retrospective"}</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {loadingRetrospective ? (
+            <div className="flex min-h-[300px] flex-col items-center justify-center">
+              <Loader2 size={28} className="animate-spin text-indigo-300" />
+              <p className="mt-3 text-xs text-white/40">Agent is synthesizing sprint retrospective telemetry...</p>
+            </div>
+          ) : retrospective ? (
+            <div className="space-y-6">
+              {/* Telemetry KPI Cards */}
+              <div className="grid gap-4 sm:grid-cols-4">
+                <div className="rounded-2xl border border-indigo-400/20 bg-indigo-500/10 p-4">
+                  <p className="text-xs text-white/50">Completion Rate</p>
+                  <p className="mt-1 text-3xl font-bold text-indigo-300">{retrospective.velocity_summary.completion_rate_percent}%</p>
+                  <p className="mt-1 text-[11px] text-white/40">Sprint throughput</p>
+                </div>
+
+                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4">
+                  <p className="text-xs text-white/50">Delivered Tasks</p>
+                  <p className="mt-1 text-3xl font-bold text-emerald-300">
+                    {retrospective.velocity_summary.completed} / {retrospective.velocity_summary.total_deliverables}
+                  </p>
+                  <p className="mt-1 text-[11px] text-emerald-400/70">Tasks marked Done</p>
+                </div>
+
+                <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4">
+                  <p className="text-xs text-white/50">In Flight</p>
+                  <p className="mt-1 text-3xl font-bold text-cyan-300">{retrospective.velocity_summary.in_progress}</p>
+                  <p className="mt-1 text-[11px] text-cyan-400/70">Active development</p>
+                </div>
+
+                <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 p-4">
+                  <p className="text-xs text-white/50">Overdue Items</p>
+                  <p className="mt-1 text-3xl font-bold text-rose-300">{retrospective.velocity_summary.overdue}</p>
+                  <p className="mt-1 text-[11px] text-rose-400/70">Deadline breaches</p>
+                </div>
+              </div>
+
+              {/* Retrospective 3-Pillar Breakdown */}
+              <div className="grid gap-4 md:grid-cols-3">
+                {/* What Went Well */}
+                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.04] p-5">
+                  <div className="flex items-center gap-2 text-emerald-300">
+                    <Trophy size={16} />
+                    <h3 className="text-sm font-semibold">What Went Well</h3>
+                  </div>
+                  <ul className="mt-3 space-y-2.5 text-xs text-white/80">
+                    {retrospective.what_went_well.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-emerald-400">🌟</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Areas for Improvement */}
+                <div className="rounded-2xl border border-amber-400/20 bg-amber-500/[0.04] p-5">
+                  <div className="flex items-center gap-2 text-amber-300">
+                    <AlertTriangle size={16} />
+                    <h3 className="text-sm font-semibold">Areas for Improvement</h3>
+                  </div>
+                  <ul className="mt-3 space-y-2.5 text-xs text-white/80">
+                    {retrospective.what_could_be_improved.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-amber-400">⚠️</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Action Items */}
+                <div className="rounded-2xl border border-indigo-400/20 bg-indigo-500/[0.04] p-5">
+                  <div className="flex items-center gap-2 text-indigo-300">
+                    <Target size={16} />
+                    <h3 className="text-sm font-semibold">Action Items Next Sprint</h3>
+                  </div>
+                  <ul className="mt-3 space-y-2.5 text-xs text-white/80">
+                    {retrospective.action_items.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-indigo-400">🎯</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Raw Markdown Card */}
+              <div className="rounded-2xl border border-white/10 bg-black/40 p-5 font-mono text-xs text-white/80 whitespace-pre-wrap">
+                {retrospective.summary_markdown}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-10 text-xs text-white/40">No retrospective generated yet. Click Regenerate.</div>
+          )}
+        </div>
+      )}
+
+      {/* MODE 5: RAG & KNOWLEDGE BASE SEARCH */}
       {activeMode === "knowledge" && (
         <div className="flex-1 overflow-y-auto space-y-6 rounded-[28px] border border-white/[0.08] bg-white/[0.03] p-7 backdrop-blur-2xl">
           <div>

@@ -31,6 +31,23 @@ export interface DailyStandupResponse {
   summary_markdown: string;
 }
 
+export interface SprintRetrospectiveResponse {
+  generated_at: string;
+  workspace_name: string;
+  what_went_well: string[];
+  what_could_be_improved: string[];
+  action_items: string[];
+  velocity_summary: {
+    total_deliverables: number;
+    completed: number;
+    in_progress: number;
+    overdue: number;
+    completion_rate_percent: number;
+    active_projects: number;
+  };
+  summary_markdown: string;
+}
+
 export interface AutoAssignResponse {
   recommended_user_id: string | null;
   recommended_name: string | null;
@@ -112,6 +129,15 @@ export async function getAIDailyStandup(
 ): Promise<DailyStandupResponse> {
   const response = await api.get<DailyStandupResponse>(
     `/api/v1/workspaces/${workspaceId}/ai/daily-standup`,
+  );
+  return response.data;
+}
+
+export async function getAISprintRetrospective(
+  workspaceId: string,
+): Promise<SprintRetrospectiveResponse> {
+  const response = await api.get<SprintRetrospectiveResponse>(
+    `/api/v1/workspaces/${workspaceId}/ai/retrospective`,
   );
   return response.data;
 }

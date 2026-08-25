@@ -15,6 +15,7 @@ from app.schemas.ai import (
     KnowledgeSearchRequest,
     KnowledgeSearchResponse,
     SprintAnalysisResponse,
+    SprintRetrospectiveResponse,
     TaskBreakdownRequest,
     TaskBreakdownResponse,
 )
@@ -23,6 +24,7 @@ from app.services.ai import (
     breakdown_task,
     chat_with_external_ai,
     generate_daily_standup,
+    generate_sprint_retrospective,
     recommend_optimal_assignee,
     search_workspace_knowledge,
 )
@@ -127,6 +129,31 @@ def get_daily_standup(
 ):
     try:
         return generate_daily_standup(
+            db=db,
+            workspace_id=str(workspace_id),
+        )
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+
+
+@router.get(
+    "/{workspace_id}/ai/retrospective",
+    response_model=SprintRetrospectiveResponse,
+    status_code=status.HTTP_200_OK,
+)
+def get_sprint_retrospective(
+    workspace_id: UUID,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+    membership: WorkspaceMembership = Depends(
+        require_workspace_role("owner", "admin", "member")
+    ),
+):
+    try:
+        return generate_sprint_retrospective(
             db=db,
             workspace_id=str(workspace_id),
         )

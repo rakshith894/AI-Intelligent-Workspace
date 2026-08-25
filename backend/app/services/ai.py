@@ -14,6 +14,7 @@ from app.schemas.ai import (
     ExternalAIChatResponse,
     KnowledgeSearchResponse,
     SprintAnalysisResponse,
+    SprintRetrospectiveResponse,
     SubtaskSuggestion,
     TaskBreakdownRequest,
     TaskBreakdownResponse,
@@ -201,6 +202,105 @@ def generate_daily_standup(
         blockers_and_risks=blockers,
         summary_markdown=summary_md,
     )
+
+
+def generate_sprint_retrospective(
+    db: Session,
+    workspace_id: str,
+) -> SprintRetrospectiveResponse:
+    workspace_uuid = UUID(workspace_id)
+    workspace = db.scalar(select(Workspace).where(Workspace.id == workspace_uuid))
+    ws_name = workspace.name if workspace else "Workspace"
+
+    projects = db.scalars(
+        select(Project).where(Project.workspace_id == workspace_uuid)
+    ).all()
+    project_ids = [p.id for p in projects]
+
+    tasks = db.scalars(
+        select(Task).where(Task.project_id.in_(project_ids))
+    ).all() if project_ids else []
+
+    total = len(tasks)
+    done_tasks = [t for t in tasks if t.status == "done"]
+    in_progress = [t for t in tasks if t.status == "in_progress"]
+    overdue_tasks = [t for t in tasks if t.due_date and t.due_date < datetime.now(timezone.utc) and t.status != "done"]
+
+    done_count = len(done_tasks)
+    overdue_count = len(overdue_tasks)
+    completion_rate = int((done_count / max(total, 1)) * 100)
+
+    # Wins
+    what_went_well: list[str] = []
+    if done_count > 0:
+        what_went_well.append(f"Successfully closed {done_count} deliverable(s) across {len(projects)} active project(s).")
+        sample_done = ", ".join(f"'{t.title}'" for t in done_tasks[:3])
+        what_went_well.append(f"High-impact deliveries completed: {sample_done}.")
+    else:
+        what_went_well.append("Sprint kicked off with structured backlog and defined milestones.")
+
+    if overdue_count == 0:
+        what_went_well.append("Zero overdue tasks recorded — 100% on-time milestone execution.")
+    else:
+        what_went_well.append(f"Active focus maintained with {len(in_progress)} features in active development.")
+
+    # Opportunities for improvement
+    what_could_be_improved: list[str] = []
+    if overdue_count > 0:
+        what_could_be_improved.append(f"{overdue_count} deliverable(s) breached due dates, indicating estimation or dependency bottlenecks.")
+    if len(in_progress) > 8:
+        what_could_be_improved.append(f"Work-in-progress limit exceeded ({len(in_progress)} concurrent tasks), creating context-switching overhead.")
+    if completion_rate < 50 and total > 5:
+        what_could_be_improved.append(f"Sprint closure rate at {completion_rate}% — consider smaller incremental pull requests.")
+    if not what_could_be_improved:
+        what_could_be_improved.append("Maintain cadence and consider increasing sprint velocity targets for the next cycle.")
+
+    # Action Items
+    action_items: list[str] = []
+    if overdue_count > 0:
+        action_items.append("Conduct an urgent triage meeting on overdue blockers and re-estimate scope.")
+    action_items.append("Enforce strict Definition of Done (DoD) including automated integration tests and peer reviews.")
+    action_items.append("Use AI Copilot subtask estimation for upcoming backlog stories to prevent estimation drift.")
+    action_items.append("Schedule continuous asynchronous standup check-ins for in-flight tasks.")
+
+    velocity_summary = {
+        "total_deliverables": total,
+        "completed": done_count,
+        "in_progress": len(in_progress),
+        "overdue": overdue_count,
+        "completion_rate_percent": completion_rate,
+        "active_projects": len(projects),
+    }
+
+    summary_md = f"""### 🎯 Sprint Retrospective Report — {ws_name}
+**Generated:** {datetime.now().strftime('%B %d, %Y')} | **Completion Rate:** {completion_rate}%
+
+#### 🌟 What Went Well
+{chr(10).join(f"- {item}" for item in what_went_well)}
+
+#### ⚠️ Areas for Improvement
+{chr(10).join(f"- {item}" for item in what_could_be_improved)}
+
+#### 🚀 Action Items for Next Sprint
+{chr(10).join(f"- {item}" for item in action_items)}
+
+#### 📊 Velocity Telemetry
+- Total Tasks: **{total}**
+- Completed: **{done_count}** ({completion_rate}%)
+- In-Progress: **{len(in_progress)}**
+- Overdue: **{overdue_count}**
+"""
+
+    return SprintRetrospectiveResponse(
+        generated_at=datetime.now(timezone.utc),
+        workspace_name=ws_name,
+        what_went_well=what_went_well,
+        what_could_be_improved=what_could_be_improved,
+        action_items=action_items,
+        velocity_summary=velocity_summary,
+        summary_markdown=summary_md,
+    )
+
 
 
 def recommend_optimal_assignee(

@@ -17,8 +17,12 @@
 
 ### 🤖 Intelligent AI Capabilities
 - **Workspace AI Copilot**: Context-aware AI assistant grounded on your workspace projects, deliverables, and backlog. Supports multimodal inputs (image/photo analysis and document attachments).
+- **Voice Dictation (Speech-to-Text)**: Speak directly to the AI Copilot with hands-free voice transcription powered by the Web Speech API.
 - **Multi-Provider LLM Integration**: Connect your own API keys for **OpenAI** (`gpt-4o`, `gpt-4o-mini`), **Groq** (`llama-3.3-70b-versatile`), **OpenRouter**, or use the high-performance **Built-in Workspace Heuristics Engine**.
+- **Chat Management & Markdown Export**: Instant **Clear Chat** reset and 1-click **Export to Markdown (`.md`)** for saving and sharing conversation logs and architecture decisions.
+- **1-Click Message & Code Copying**: Dedicated copy buttons on every assistant answer for instant clipboard access.
 - **Automated Task Decomposition**: Break complex user stories and engineering tasks into structured, estimated subtasks and tag recommendations in seconds.
+- **Autonomous Sprint Retrospective Agent**: Synthesizes sprint outcomes into 3 actionable pillars (*What Went Well*, *Areas for Improvement*, and *Action Items for Next Sprint*) paired with completion velocity metrics.
 - **Sprint Diagnostics & Health Scoring**: Real-time algorithmic analysis detecting sprint velocity, overdue deliverables, bottlenecks, and actionable recommendations.
 - **Automated Daily Standup Generator**: One-click generation of comprehensive daily standups categorized by completed milestones, in-flight work, and blockers.
 - **Smart Workload Balancing & Auto-Assign**: Evaluates member workload distribution and capacity to recommend the optimal assignee for newly created tasks.
