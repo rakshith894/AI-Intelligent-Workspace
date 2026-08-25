@@ -47,7 +47,10 @@ def create_invitation(
                 "User is already a member of this workspace"
             )
 
-    # Check for an existing invitation
+    token = secrets.token_urlsafe(48)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+
+    # Check for an existing pending invitation
     existing_invitation = db.scalar(
         select(WorkspaceInvitation).where(
             WorkspaceInvitation.workspace_id == workspace_id,
@@ -57,23 +60,20 @@ def create_invitation(
     )
 
     if existing_invitation:
-        raise ValueError(
-            "An active invitation already exists for this email"
+        # Refresh the existing invitation with a new token and expiration date
+        existing_invitation.token = token
+        existing_invitation.expires_at = expires_at
+        existing_invitation.created_by = created_by
+        invitation = existing_invitation
+    else:
+        invitation = WorkspaceInvitation(
+            workspace_id=workspace_id,
+            email=email,
+            token=token,
+            expires_at=expires_at,
+            created_by=created_by,
         )
-
-    token = secrets.token_urlsafe(48)
-
-    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-
-    invitation = WorkspaceInvitation(
-        workspace_id=workspace_id,
-        email=email,
-        token=token,
-        expires_at=expires_at,
-        created_by=created_by,
-    )
-
-    db.add(invitation)
+        db.add(invitation)
 
     workspace = db.scalar(
         select(Workspace).where(
