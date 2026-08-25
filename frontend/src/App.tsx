@@ -3,6 +3,7 @@ import {
   Navigate,
   Route,
   Routes,
+  useNavigate,
 } from "react-router-dom";
 
 import {
@@ -15,24 +16,40 @@ import {
 import {
   Activity,
   AlertTriangle,
+  ArrowRight,
   BarChart3,
+  Bell,
+  Check,
   CheckCircle2,
   ChevronDown,
+  Copy,
+  Crown,
   FolderKanban,
   Loader2,
   Plus,
+  Settings as SettingsIcon,
+  Shield,
   Sparkles,
   Users,
-  UserCog,
+  UserPlus,
+  Zap,
 } from "lucide-react";
 
 import AppLayout from "./layouts/AppLayout";
+
 import Login from "./pages/auth/login";
+import Register from "./pages/auth/Register";
 
 import Projects from "./pages/projects/projects";
 import ProjectDetails from "./pages/projects/project-details";
 import Tasks from "./pages/tasks/tasks";
 import WorkspaceMembers from "./pages/workspace/members";
+import Team from "./pages/team/Team";
+import Notifications from "./pages/notifications/Notifications";
+import Settings from "./pages/settings/Settings";
+import Analytics from "./pages/analytics/Analytics";
+import AICopilot from "./pages/ai/AICopilot";
+import AcceptInvitation from "./pages/invitations/AcceptInvitation";
 
 import {
   createWorkspace,
@@ -276,13 +293,11 @@ function Dashboard() {
 
   useEffect(() => {
     if (!selectedWorkspace) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAnalytics(null);
       return;
     }
 
-    // Important:
-    // Copy the ID before entering the async function.
-    // TypeScript now knows this value cannot be null.
     const workspaceId = selectedWorkspace.id;
 
     async function loadAnalytics() {
@@ -732,85 +747,349 @@ function ProjectsRoute() {
 ============================================================ */
 
 function OwnerAccess() {
+  const navigate = useNavigate();
+  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
+  const [copiedId, setCopiedId] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await getMyWorkspaces();
+        if (data.length > 0) {
+          setSelectedWorkspace(data[0]);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    void load();
+  }, []);
+
+  function handleCopyWorkspaceId() {
+    if (!selectedWorkspace) return;
+    void navigator.clipboard.writeText(selectedWorkspace.id);
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 2000);
+  }
+
   return (
     <div className="relative mx-auto max-w-[1200px] space-y-8">
+      {/* Ambient background glow */}
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute left-[20%] top-[10%] h-[400px] w-[400px] rounded-full bg-amber-500/[0.05] blur-[140px]" />
-
-        <div className="absolute right-[10%] bottom-[10%] h-[450px] w-[450px] rounded-full bg-indigo-500/[0.05] blur-[150px]" />
+        <div className="absolute left-[20%] top-[10%] h-[400px] w-[400px] rounded-full bg-amber-500/[0.06] blur-[140px]" />
+        <div className="absolute right-[10%] bottom-[10%] h-[450px] w-[450px] rounded-full bg-indigo-500/[0.06] blur-[150px]" />
       </div>
 
-      <div>
-        <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-400/10">
-            <UserCog
-              size={20}
-              className="text-amber-300"
-            />
+      {/* Header */}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-400/10">
+              <Crown size={20} className="text-amber-300" />
+            </div>
+
+            <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-amber-300">
+              Owner Privileges
+            </span>
           </div>
 
-          <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-amber-300">
-            Owner
+          <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl">
+            Owner Command Center
+          </h1>
+
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-white/40 md:text-base">
+            Complete administrative authority over workspace settings, team member roles, permissions, and workspace telemetry.
+          </p>
+        </div>
+
+        {/* Workspace Quick Selector / Copy ID */}
+        {selectedWorkspace && (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleCopyWorkspaceId}
+              className="flex h-11 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-xs font-medium text-white/70 transition hover:bg-white/[0.08] hover:text-white"
+            >
+              {copiedId ? (
+                <>
+                  <Check size={14} className="text-emerald-400" />
+                  <span className="text-emerald-300">Workspace ID Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy size={14} className="text-amber-300" />
+                  <span>Copy Workspace ID</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/settings")}
+              className="flex h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 text-xs font-semibold text-black shadow-lg shadow-amber-500/20 transition hover:scale-[1.02]"
+            >
+              <SettingsIcon size={14} />
+              <span>Workspace Settings</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 3 Interactive Cards with Live Click Actions */}
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {/* CARD 1: WORKSPACE ADMINISTRATION */}
+        <div className="group flex flex-col justify-between rounded-[28px] border border-white/[0.08] bg-white/[0.035] p-7 shadow-xl shadow-black/10 backdrop-blur-2xl transition duration-300 hover:border-amber-400/30 hover:bg-white/[0.05]">
+          <div>
+            <div className="flex items-center justify-between">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-400/10 text-amber-300">
+                <Shield size={22} />
+              </div>
+              <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-amber-300">
+                Admin Control
+              </span>
+            </div>
+
+            <h2 className="mt-6 text-xl font-bold text-white">
+              Workspace Administration
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-white/40">
+              Manage workspace configuration, rename active workspaces, configure notification thresholds, and security policies.
+            </p>
+
+            <div className="mt-5 space-y-2 border-t border-white/[0.06] pt-4 text-xs text-white/60">
+              <div className="flex items-center justify-between">
+                <span>Active Workspace:</span>
+                <span className="font-semibold text-white">{selectedWorkspace?.name || "Loading..."}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Your Role:</span>
+                <span className="font-semibold text-amber-300 uppercase">{selectedWorkspace?.role || "Owner"}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-2 pt-2">
+            <button
+              type="button"
+              onClick={() => navigate("/settings")}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 py-2.5 text-xs font-semibold text-white transition hover:bg-amber-500/20 hover:text-amber-200"
+            >
+              <span>Configure Workspace Settings</span>
+              <ArrowRight size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/projects")}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 py-2.5 text-xs font-medium text-white/60 transition hover:bg-white/[0.05] hover:text-white"
+            >
+              <FolderKanban size={14} />
+              <span>Browse Projects</span>
+            </button>
+          </div>
+        </div>
+
+        {/* CARD 2: MEMBER PERMISSIONS & INVITATIONS */}
+        <div className="group flex flex-col justify-between rounded-[28px] border border-white/[0.08] bg-white/[0.035] p-7 shadow-xl shadow-black/10 backdrop-blur-2xl transition duration-300 hover:border-indigo-400/30 hover:bg-white/[0.05]">
+          <div>
+            <div className="flex items-center justify-between">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-indigo-400/20 bg-indigo-500/10 text-indigo-300">
+                <Users size={22} />
+              </div>
+              <span className="rounded-full bg-indigo-400/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-indigo-300">
+                Team Access
+              </span>
+            </div>
+
+            <h2 className="mt-6 text-xl font-bold text-white">
+              Member Permissions & Roles
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-white/40">
+              Invite teammates via email or link, assign Owner / Admin / Member roles, and revoke workspace access at any time.
+            </p>
+
+            <div className="mt-5 space-y-2 border-t border-white/[0.06] pt-4 text-xs text-white/60">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={13} className="text-emerald-400" />
+                <span>Invite unlimited members to projects</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={13} className="text-emerald-400" />
+                <span>Assign Granular Permissions & Roles</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-2 pt-2">
+            <button
+              type="button"
+              onClick={() => navigate("/workspace/members")}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500/20 py-2.5 text-xs font-semibold text-indigo-200 transition hover:bg-indigo-500/30 hover:text-white"
+            >
+              <UserPlus size={14} />
+              <span>Invite & Manage Members</span>
+              <ArrowRight size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/team")}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 py-2.5 text-xs font-medium text-white/60 transition hover:bg-white/[0.05] hover:text-white"
+            >
+              <Users size={14} />
+              <span>View Team Workload</span>
+            </button>
+          </div>
+        </div>
+
+        {/* CARD 3: WORKSPACE CONTROLS & INTELLIGENCE */}
+        <div className="group flex flex-col justify-between rounded-[28px] border border-white/[0.08] bg-white/[0.035] p-7 shadow-xl shadow-black/10 backdrop-blur-2xl transition duration-300 hover:border-purple-400/30 hover:bg-white/[0.05]">
+          <div>
+            <div className="flex items-center justify-between">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-purple-400/20 bg-purple-500/10 text-purple-300">
+                <Zap size={22} />
+              </div>
+              <span className="rounded-full bg-purple-400/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-purple-300">
+                AI Intelligence
+              </span>
+            </div>
+
+            <h2 className="mt-6 text-xl font-bold text-white">
+              Workspace Controls & AI
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-white/40">
+              Run autonomous daily standups, diagnose sprint health, perform semantic knowledge search, and configure custom LLM keys.
+            </p>
+
+            <div className="mt-5 space-y-2 border-t border-white/[0.06] pt-4 text-xs text-white/60">
+              <div className="flex items-center gap-2">
+                <Sparkles size={13} className="text-purple-400" />
+                <span>Autonomous Daily Standup Engine</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Sparkles size={13} className="text-purple-400" />
+                <span>Predictive Sprint Blocker Modeling</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-2 pt-2">
+            <button
+              type="button"
+              onClick={() => navigate("/ai")}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-500/30 to-indigo-500/30 py-2.5 text-xs font-semibold text-purple-200 transition hover:from-purple-500/40 hover:to-indigo-500/40 hover:text-white"
+            >
+              <Sparkles size={14} />
+              <span>Launch AI Command Center</span>
+              <ArrowRight size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/analytics")}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 py-2.5 text-xs font-medium text-white/60 transition hover:bg-white/[0.05] hover:text-white"
+            >
+              <BarChart3 size={14} />
+              <span>Performance Analytics</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* NOTIFICATIONS & COLLABORATION GUIDE */}
+      <div className="relative overflow-hidden rounded-[28px] border border-indigo-400/20 bg-gradient-to-br from-indigo-500/[0.08] via-purple-500/[0.04] to-black/40 p-7 shadow-2xl backdrop-blur-2xl">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-indigo-300">
+              <Bell size={18} />
+              <span className="text-xs font-bold uppercase tracking-wider">
+                Notifications & Event Dispatcher System
+              </span>
+            </div>
+
+            <h3 className="text-xl font-bold text-white">
+              How Notifications Work & How to Send Them
+            </h3>
+
+            <div className="grid gap-3 pt-2 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 text-xs">
+                <p className="font-semibold text-indigo-200">📥 Receiving Notifications</p>
+                <p className="mt-1 text-white/50 leading-5">
+                  You automatically receive alerts whenever a task is assigned to you, a deliverable status changes, or a teammate comments on your work.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 text-xs">
+                <p className="font-semibold text-emerald-200">📤 Sending / Triggering Notifications</p>
+                <p className="mt-1 text-white/50 leading-5">
+                  Assign any task to a member, update task status, or post a comment. The backend event bus dispatches real-time alerts immediately to their inbox.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate("/notifications")}
+            className="flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-500 px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-indigo-500/25 transition hover:scale-[1.02]"
+          >
+            <Bell size={16} />
+            <span>Open Notifications Center</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ROLE PRIVILEGES MATRIX */}
+      <div className="rounded-[28px] border border-white/[0.08] bg-white/[0.03] p-7 shadow-xl backdrop-blur-2xl">
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-white">Workspace Role Privileges</h3>
+            <p className="text-xs text-white/40">Overview of capabilities by permission tier</p>
+          </div>
+          <span className="rounded-lg border border-amber-400/20 bg-amber-400/10 px-2.5 py-1 text-[10px] font-bold text-amber-300">
+            Owner Controls
           </span>
         </div>
 
-        <h1 className="text-4xl font-bold tracking-tight">
-          Owner Access
-        </h1>
-
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-white/40">
-          Manage owner-level workspace permissions,
-          administration and workspace controls.
-        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-white/10 text-white/40">
+                <th className="pb-3 font-semibold">Capability</th>
+                <th className="pb-3 font-semibold text-amber-300">Owner</th>
+                <th className="pb-3 font-semibold text-indigo-300">Admin</th>
+                <th className="pb-3 font-semibold text-white/70">Member</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/[0.04] text-white/70">
+              <tr>
+                <td className="py-3">Manage Workspace Settings & Delete Workspace</td>
+                <td className="py-3 text-emerald-400">✓ Full</td>
+                <td className="py-3 text-rose-400">✗</td>
+                <td className="py-3 text-rose-400">✗</td>
+              </tr>
+              <tr>
+                <td className="py-3">Invite Members & Assign Roles</td>
+                <td className="py-3 text-emerald-400">✓ Full</td>
+                <td className="py-3 text-emerald-400">✓ Member Only</td>
+                <td className="py-3 text-rose-400">✗</td>
+              </tr>
+              <tr>
+                <td className="py-3">Create Projects & Assign Tasks</td>
+                <td className="py-3 text-emerald-400">✓ Full</td>
+                <td className="py-3 text-emerald-400">✓ Full</td>
+                <td className="py-3 text-emerald-400">✓ Full</td>
+              </tr>
+              <tr>
+                <td className="py-3">AI Copilot, Standup Reports & Telemetry</td>
+                <td className="py-3 text-emerald-400">✓ Full</td>
+                <td className="py-3 text-emerald-400">✓ Full</td>
+                <td className="py-3 text-emerald-400">✓ Full</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        <OwnerCard
-          title="Workspace Administration"
-          description="Manage workspace-level configuration and administration."
-        />
-
-        <OwnerCard
-          title="Member Permissions"
-          description="Control roles and permissions for workspace members."
-        />
-
-        <OwnerCard
-          title="Workspace Controls"
-          description="Manage settings available only to workspace owners."
-        />
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================
-   OWNER CARD
-============================================================ */
-
-function OwnerCard({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="rounded-[26px] border border-white/[0.08] bg-white/[0.035] p-6 shadow-xl shadow-black/10 backdrop-blur-2xl">
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-400/10">
-        <UserCog
-          size={18}
-          className="text-amber-300"
-        />
-      </div>
-
-      <h2 className="mt-5 text-base font-semibold">
-        {title}
-      </h2>
-
-      <p className="mt-2 text-sm leading-6 text-white/35">
-        {description}
-      </p>
     </div>
   );
 }
@@ -997,16 +1276,37 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* PUBLIC */}
+
+        {/* ======================================================
+            PUBLIC ROUTES
+        ====================================================== */}
 
         <Route
           path="/login"
           element={<Login />}
         />
 
-        {/* PROTECTED */}
+        <Route
+          path="/register"
+          element={<Register />}
+        />
+
+        <Route
+          path="/invite/:token"
+          element={<AcceptInvitation />}
+        />
+
+        <Route
+          path="/invitations/:token/accept"
+          element={<AcceptInvitation />}
+        />
+
+        {/* ======================================================
+            PROTECTED ROUTES
+        ====================================================== */}
 
         <Route element={<ProtectedLayout />}>
+
           {/* DASHBOARD */}
 
           <Route
@@ -1053,59 +1353,42 @@ export default function App() {
 
           <Route
             path="/analytics"
-            element={
-              <div className="p-6 text-white">
-                Analytics page coming soon.
-              </div>
-            }
+            element={<Analytics />}
           />
 
           {/* TEAM */}
 
           <Route
             path="/team"
-            element={
-              <div className="p-6 text-white">
-                Team page coming soon.
-              </div>
-            }
+            element={<Team />}
           />
 
           {/* NOTIFICATIONS */}
 
           <Route
             path="/notifications"
-            element={
-              <div className="p-6 text-white">
-                Notifications page coming soon.
-              </div>
-            }
+            element={<Notifications />}
           />
 
           {/* SETTINGS */}
 
           <Route
             path="/settings"
-            element={
-              <div className="p-6 text-white">
-                Settings page coming soon.
-              </div>
-            }
+            element={<Settings />}
           />
 
           {/* AI */}
 
           <Route
             path="/ai"
-            element={
-              <div className="p-6 text-white">
-                AI Copilot coming soon.
-              </div>
-            }
+            element={<AICopilot />}
           />
+
         </Route>
 
-        {/* FALLBACK */}
+        {/* ======================================================
+            FALLBACK
+        ====================================================== */}
 
         <Route
           path="*"
@@ -1116,6 +1399,7 @@ export default function App() {
             />
           }
         />
+
       </Routes>
     </BrowserRouter>
   );

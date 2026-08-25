@@ -12,13 +12,16 @@ export const api = axios.create({
   },
 });
 
-// Attach JWT access token to every API request
+/* ============================================================
+   REQUEST INTERCEPTOR
+   Attach JWT access token to every request
+============================================================ */
+
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("access_token");
 
     if (token) {
-      config.headers = config.headers ?? {};
       config.headers.Authorization = `Bearer ${token}`;
     }
 
@@ -29,15 +32,22 @@ api.interceptors.request.use(
   },
 );
 
-// Handle authentication failures
+/* ============================================================
+   RESPONSE INTERCEPTOR
+   Handle authentication failures
+============================================================ */
+
 api.interceptors.response.use(
   (response) => response,
+
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("access_token");
 
-      // Don't redirect here automatically.
-      // React Router will handle authentication.
+      // Redirect only when the user is not already on login.
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
     }
 
     return Promise.reject(error);

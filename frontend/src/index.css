@@ -2,7 +2,7 @@
 
 :root {
   font-family:
-    Inter,
+    "InterVariable",
     ui-sans-serif,
     system-ui,
     -apple-system,
@@ -10,10 +10,17 @@
     "Segoe UI",
     sans-serif;
 
-  color: #e5e7eb;
-  background: #07070a;
+  --bg-color: #030305;
+  --panel-color: #0b0b0f;
+  --text-primary: #f8fafc;
+  --accent-primary: #6366f1;
+  --accent-secondary: #a855f7;
+
+  color: var(--text-primary);
+  background: var(--bg-color);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 * {
@@ -21,25 +28,19 @@
 }
 
 html {
-  background: #07070a;
+  background: var(--bg-color);
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
-  min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(
-      circle at 20% 0%,
-      rgba(99, 102, 241, 0.12),
-      transparent 30%
-    ),
-    radial-gradient(
-      circle at 80% 10%,
-      rgba(168, 85, 247, 0.10),
-      transparent 28%
-    ),
-    #07070a;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.1) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(99, 102, 241, 0.05) 0px, transparent 50%);
+  background-color: var(--bg-color);
+  background-attachment: fixed;
 }
 
 button,
@@ -54,14 +55,14 @@ button {
 }
 
 ::selection {
-  background: rgba(129, 140, 248, 0.35);
-  color: white;
+  background: rgba(99, 102, 241, 0.3);
+  color: #fff;
 }
 
-/* Premium scrollbar */
+/* Premium Slim Scrollbar */
 
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -69,36 +70,59 @@ button {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.15);
 }
 
-/* Glass utility */
+/* Enhanced Glassmorphism */
 
 .glass {
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(17, 17, 21, 0.6);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 .glass-hover {
-  transition:
-    transform 0.25s ease,
-    border-color 0.25s ease,
-    background 0.25s ease,
-    box-shadow 0.25s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-hover:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.12);
   transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.065);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.25),
-    0 0 40px rgba(99, 102, 241, 0.06);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(99, 102, 241, 0.15);
+}
+
+/* Shimmer Effect */
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.03) 50%,
+    transparent 100%
+  );
+  animation: shimmer 3s infinite linear;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(50%); }
 }

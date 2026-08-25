@@ -27,6 +27,15 @@ export interface WorkspaceMember {
   workspace_id?: string;
   user_id?: string;
   name?: string;
+  full_name?: string;
+}
+
+export interface InvitationResponse {
+  id: string;
+  workspace_id: string;
+  email: string;
+  token: string;
+  expires_at: string;
 }
 
 /* ============================================================
@@ -88,3 +97,41 @@ export async function getWorkspaceMembers(
 
   return response.data;
 }
+
+/* ============================================================
+   INVITE MEMBER
+============================================================ */
+
+export async function inviteToWorkspace(
+  workspaceId: string,
+  email: string,
+  role: string = "member",
+): Promise<InvitationResponse> {
+  const response = await api.post<InvitationResponse>(
+    `/api/v1/workspaces/${workspaceId}/invitations`,
+    { email, role },
+  );
+
+  return response.data;
+}
+
+/* ============================================================
+   ACCEPT INVITATION
+============================================================ */
+
+export interface AcceptInvitationResponse {
+  message: string;
+  workspace_id: string;
+  role: string;
+}
+
+export async function acceptInvitation(
+  token: string,
+): Promise<AcceptInvitationResponse> {
+  const response = await api.post<AcceptInvitationResponse>(
+    `/api/v1/invitations/${token}/accept`,
+  );
+
+  return response.data;
+}
+

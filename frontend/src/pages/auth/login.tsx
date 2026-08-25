@@ -1,7 +1,7 @@
-
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 import {
   ArrowRight,
   Eye,
@@ -45,11 +45,30 @@ export default function Login() {
       saveAccessToken(result.access_token);
 
       navigate("/");
-    } catch (error: any) {
-      setError(
-        error?.response?.data?.detail ??
-          "Unable to sign in. Please check your credentials.",
-      );
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        if (!error.response) {
+          setError(
+            "Cannot connect to server. Please make sure backend API is running on http://127.0.0.1:8000.",
+          );
+        } else {
+          const detail = error.response.data?.detail;
+          if (typeof detail === "string") {
+            setError(detail);
+          } else if (Array.isArray(detail)) {
+            const msgs = detail
+              .map((item: { msg?: string }) => item?.msg || "Invalid field")
+              .join(". ");
+            setError(msgs || "Validation error");
+          } else {
+            setError(
+              `Sign in failed (Server status: ${error.response.status})`,
+            );
+          }
+        }
+      } else {
+        setError("Unable to sign in. Please check your credentials.");
+      }
     } finally {
       setLoading(false);
     }
@@ -154,7 +173,7 @@ export default function Login() {
                       setEmail(event.target.value)
                     }
                     placeholder="you@example.com"
-                    className="h-13 w-full rounded-2xl border border-white/10 bg-black/20 pl-11 pr-4 text-sm text-white outline-none transition-all placeholder:text-white/20 focus:border-indigo-400/50 focus:bg-white/[0.06] focus:ring-4 focus:ring-indigo-500/10"
+                    className="h-[52px] w-full rounded-2xl border border-white/10 bg-black/20 pl-11 pr-4 text-sm text-white outline-none transition-all placeholder:text-white/20 focus:border-indigo-400/50 focus:bg-white/[0.06] focus:ring-4 focus:ring-indigo-500/10"
                   />
 
                 </div>
@@ -188,7 +207,7 @@ export default function Login() {
                       setPassword(event.target.value)
                     }
                     placeholder="Enter your password"
-                    className="h-13 w-full rounded-2xl border border-white/10 bg-black/20 pl-11 pr-12 text-sm text-white outline-none transition-all placeholder:text-white/20 focus:border-indigo-400/50 focus:bg-white/[0.06] focus:ring-4 focus:ring-indigo-500/10"
+                    className="h-[52px] w-full rounded-2xl border border-white/10 bg-black/20 pl-11 pr-12 text-sm text-white outline-none transition-all placeholder:text-white/20 focus:border-indigo-400/50 focus:bg-white/[0.06] focus:ring-4 focus:ring-indigo-500/10"
                   />
 
                   <button
@@ -224,7 +243,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="group flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 font-semibold shadow-xl shadow-indigo-500/20 transition-all duration-300 hover:scale-[1.01] hover:shadow-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                className="group flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 font-semibold shadow-xl shadow-indigo-500/20 transition-all duration-300 hover:scale-[1.01] hover:shadow-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading
                   ? "Signing in..."
@@ -239,6 +258,16 @@ export default function Login() {
               </button>
 
             </form>
+
+            <div className="mt-6 text-center text-sm text-white/40">
+              Don't have an account?{" "}
+              <Link
+                to="/register"
+                className="font-medium text-indigo-300 transition hover:text-indigo-200"
+              >
+                Register
+              </Link>
+            </div>
 
           </div>
 

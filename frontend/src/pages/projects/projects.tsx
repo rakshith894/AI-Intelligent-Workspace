@@ -5,12 +5,17 @@ import { useNavigate } from "react-router-dom";
 
 import {
   ArrowRight,
+  CheckCircle2,
+  ExternalLink,
+  FileUp,
   FolderKanban,
+  Globe,
   Loader2,
   Pencil,
   Plus,
   Sparkles,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
 
@@ -21,6 +26,7 @@ import {
   updateProject,
   type Project,
 } from "../../services/project";
+import { uploadProjectPackage } from "../../services/attachment";
 
 
 interface ProjectsProps {
@@ -58,52 +64,46 @@ export default function Projects({
   const [description, setDescription] =
     useState("");
 
+  const [projectUrl, setProjectUrl] =
+    useState("");
+
+  // Project Import / Upload State
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importCustomName, setImportCustomName] = useState("");
+  const [importProjectUrl, setImportProjectUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importSuccess, setImportSuccess] = useState("");
+
 
   /* ============================================================
      LOAD PROJECTS
   ============================================================ */
 
   async function loadProjects() {
-
     if (!workspaceId) {
       setLoading(false);
-
-      setError(
-        "No workspace selected.",
-      );
-
+      setError("No workspace selected.");
       return;
     }
 
-
     try {
-
       setLoading(true);
       setError("");
-
-      const data =
-        await getProjects(workspaceId);
-
+      const data = await getProjects(workspaceId);
       setProjects(data);
-
     } catch (err) {
-
       console.error(err);
-
-      setError(
-        "Unable to load projects. Please try again.",
-      );
-
+      setError("Unable to load projects. Please try again.");
     } finally {
-
       setLoading(false);
-
     }
   }
 
-
   useEffect(() => {
-    loadProjects();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId]);
 
 
@@ -118,6 +118,8 @@ export default function Projects({
     setName("");
 
     setDescription("");
+
+    setProjectUrl("");
 
     setError("");
 
@@ -139,6 +141,10 @@ export default function Projects({
 
     setDescription(
       project.description ?? "",
+    );
+
+    setProjectUrl(
+      project.project_url ?? "",
     );
 
     setError("");
@@ -164,6 +170,8 @@ export default function Projects({
     setName("");
 
     setDescription("");
+
+    setProjectUrl("");
   }
 
 
@@ -183,6 +191,9 @@ export default function Projects({
 
     const trimmedDescription =
       description.trim();
+
+    const trimmedUrl =
+      projectUrl.trim();
 
 
     if (!trimmedName) {
@@ -215,6 +226,9 @@ export default function Projects({
               description:
                 trimmedDescription ||
                 undefined,
+              project_url:
+                trimmedUrl ||
+                undefined,
             },
           );
 
@@ -244,6 +258,9 @@ export default function Projects({
               name: trimmedName,
               description:
                 trimmedDescription ||
+                undefined,
+              project_url:
+                trimmedUrl ||
                 undefined,
             },
           );
@@ -420,22 +437,35 @@ export default function Projects({
           </div>
 
 
-          {/* NEW PROJECT */}
+          {/* ACTION BUTTONS */}
 
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-3 text-sm font-semibold shadow-xl shadow-indigo-500/20 transition hover:scale-[1.02]"
-          >
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setImportFile(null);
+                setImportCustomName("");
+                setImportProjectUrl("");
+                setImportSuccess("");
+                setError("");
+                setImportModalOpen(true);
+              }}
+              className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white/90 shadow-xl transition hover:bg-white/10 hover:scale-[1.02]"
+            >
+              <Upload size={17} className="text-indigo-300" />
+              <span>Import / Upload Project</span>
+            </button>
 
-            <Plus size={18} />
-
-            New Project
-
-          </button>
-
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-3 text-sm font-semibold shadow-xl shadow-indigo-500/20 transition hover:scale-[1.02]"
+            >
+              <Plus size={18} />
+              New Project
+            </button>
+          </div>
         </div>
-
       </section>
 
 
@@ -579,12 +609,33 @@ export default function Projects({
 
 
                   <p className="mt-2 min-h-[48px] text-sm leading-6 text-white/40">
-
                     {project.description ||
                       "No project description provided."}
-
                   </p>
 
+                  {/* PROJECT URL */}
+                  {project.project_url && (
+                    <div className="mt-3">
+                      <a
+                        href={
+                          project.project_url.startsWith("http")
+                            ? project.project_url
+                            : `https://${project.project_url}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        title={`Open ${project.project_url}`}
+                        className="inline-flex max-w-full items-center gap-1.5 rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-2.5 py-1 text-xs font-medium text-indigo-300 transition hover:border-indigo-400/40 hover:bg-indigo-500/20 hover:text-indigo-200"
+                      >
+                        <Globe size={13} className="shrink-0" />
+                        <span className="truncate">
+                          {project.project_url.replace(/^https?:\/\/(www\.)?/, "")}
+                        </span>
+                        <ExternalLink size={11} className="shrink-0 opacity-70" />
+                      </a>
+                    </div>
+                  )}
 
                   <div className="mt-6 flex items-center justify-between border-t border-white/[0.06] pt-4">
 
@@ -737,9 +788,45 @@ export default function Projects({
                     )
                   }
                   placeholder="What is this project about?"
-                  rows={4}
+                  rows={3}
                   className="w-full resize-none rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/20 focus:border-indigo-400/50 focus:ring-4 focus:ring-indigo-500/10"
                 />
+
+              </div>
+
+
+              {/* PROJECT URL / REPOSITORY / LIVE LINK */}
+
+              <div>
+
+                <label className="mb-2 block text-sm font-medium text-white/70">
+                  Project URL <span className="text-xs font-normal text-white/40">(Optional - GitHub repo, live URL, etc.)</span>
+                </label>
+
+                <div className="relative">
+
+                  <Globe
+                    size={17}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
+                  />
+
+                  <input
+                    type="url"
+                    value={projectUrl}
+                    onChange={(event) =>
+                      setProjectUrl(
+                        event.target.value,
+                      )
+                    }
+                    placeholder="https://github.com/username/project or https://myproject.app"
+                    className="h-12 w-full rounded-2xl border border-white/10 bg-black/20 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-white/20 focus:border-indigo-400/50 focus:ring-4 focus:ring-indigo-500/10"
+                  />
+
+                </div>
+
+                <p className="mt-1.5 text-xs text-white/35">
+                  Link an already built workspace, repository, or deployed application.
+                </p>
 
               </div>
 
@@ -792,6 +879,152 @@ export default function Projects({
 
         </div>
 
+      )}
+
+      {/* IMPORT / UPLOAD PROJECT MODAL */}
+      {importModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">
+          <div className="w-full max-w-lg rounded-[32px] border border-white/10 bg-[#0c0d18]/95 p-6 shadow-2xl backdrop-blur-2xl md:p-8">
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-500/20 text-indigo-300">
+                  <FileUp size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Import / Upload Project</h3>
+                  <p className="text-xs text-white/40">Upload a project ZIP archive or JSON template</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setImportModalOpen(false)}
+                disabled={importing}
+                className="rounded-xl p-1.5 text-white/40 hover:bg-white/10 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {importSuccess ? (
+              <div className="py-6 text-center">
+                <CheckCircle2 size={40} className="mx-auto text-emerald-400" />
+                <p className="mt-3 text-sm font-semibold text-white">{importSuccess}</p>
+                <p className="mt-1 text-xs text-white/40">Your project has been synthesized into the workspace.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImportModalOpen(false);
+                    void loadProjects();
+                  }}
+                  className="mt-6 w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-emerald-500/20"
+                >
+                  View in Projects
+                </button>
+              </div>
+            ) : (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!importFile || !workspaceId) return;
+                  try {
+                    setImporting(true);
+                    setError("");
+                    const res = await uploadProjectPackage(
+                      workspaceId,
+                      importFile,
+                      importCustomName.trim() || undefined,
+                      importProjectUrl.trim() || undefined,
+                    );
+                    setImportSuccess(res.message);
+                    void loadProjects();
+                  } catch (err) {
+                    console.error(err);
+                    setError("Failed to import project package. Ensure it is a valid .zip or .json file.");
+                  } finally {
+                    setImporting(false);
+                  }
+                }}
+                className="mt-6 space-y-4 text-xs"
+              >
+                {/* File Dropzone */}
+                <div>
+                  <label className="mb-2 block font-medium text-white/70">Project File (.zip or .json)</label>
+                  <label className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/15 bg-white/[0.02] p-6 text-center cursor-pointer transition hover:border-indigo-400/50 hover:bg-indigo-500/[0.03]">
+                    <Upload size={24} className="text-indigo-400" />
+                    <span className="mt-2 font-medium text-white/80">
+                      {importFile ? importFile.name : "Choose a project file or drag & drop"}
+                    </span>
+                    <span className="mt-0.5 text-[10px] text-white/40">Supports .zip archives with files/tasks or .json project templates</span>
+                    <input
+                      type="file"
+                      accept=".zip,.json"
+                      required
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setImportFile(e.target.files[0]);
+                          if (!importCustomName) {
+                            setImportCustomName(e.target.files[0].name.replace(/\.[^/.]+$/, "").replace(/_/g, " "));
+                          }
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block font-medium text-white/70">Custom Project Name (Optional)</label>
+                  <input
+                    type="text"
+                    value={importCustomName}
+                    onChange={(e) => setImportCustomName(e.target.value)}
+                    placeholder="e.g. Project Aurora"
+                    className="h-11 w-full rounded-2xl border border-white/10 bg-black/20 px-4 text-xs text-white outline-none focus:border-indigo-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block font-medium text-white/70">Project URL / Live Link (Optional)</label>
+                  <input
+                    type="url"
+                    value={importProjectUrl}
+                    onChange={(e) => setImportProjectUrl(e.target.value)}
+                    placeholder="e.g. https://github.com/org/repo or https://myproject.app"
+                    className="h-11 w-full rounded-2xl border border-white/10 bg-black/20 px-4 text-xs text-white outline-none focus:border-indigo-400"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setImportModalOpen(false)}
+                    disabled={importing}
+                    className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] py-3 text-xs font-semibold transition hover:bg-white/10"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={importing || !importFile}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-500 py-3 text-xs font-semibold text-white shadow-xl shadow-indigo-500/20 disabled:opacity-50"
+                  >
+                    {importing ? (
+                      <>
+                        <Loader2 size={15} className="animate-spin" />
+                        <span>Importing project...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={15} />
+                        <span>Upload & Import</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
       )}
 
     </div>

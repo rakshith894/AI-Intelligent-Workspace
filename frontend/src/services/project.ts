@@ -6,6 +6,7 @@ export interface Project {
   name: string;
   slug: string;
   description: string | null;
+  project_url: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -14,11 +15,13 @@ export interface Project {
 export interface ProjectCreate {
   name: string;
   description?: string;
+  project_url?: string;
 }
 
 export interface ProjectUpdate {
   name?: string;
   description?: string;
+  project_url?: string;
 }
 
 export async function getProjects(

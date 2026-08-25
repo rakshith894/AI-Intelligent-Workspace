@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import axios from "axios";
 
-const API_URL = "http://127.0.0.1:8000";
+import { api } from "../../services/api";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -35,21 +35,14 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const response = await axios.post(
-        `${API_URL}/api/v1/auth/register`,
+      await api.post(
+        "/api/v1/auth/register",
         {
           full_name: fullName.trim(),
           email: email.trim(),
           password,
         },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
       );
-
-      console.log("Registration successful:", response.data);
 
       navigate("/login", {
         replace: true,
@@ -58,13 +51,27 @@ export default function Register() {
       console.error("Registration error:", error);
 
       if (axios.isAxiosError(error)) {
-        console.error("Status:", error.response?.status);
-        console.error("Response:", error.response?.data);
-
-        setError(
-          error.response?.data?.detail ??
-            `Registration failed (${error.response?.status ?? "unknown error"})`,
-        );
+        if (!error.response) {
+          setError(
+            "Cannot connect to server. Please make sure backend API is running on http://127.0.0.1:8000.",
+          );
+        } else {
+          const detail = error.response.data?.detail;
+          if (typeof detail === "string") {
+            setError(detail);
+          } else if (Array.isArray(detail)) {
+            const msgs = detail
+              .map((item: { msg?: string }) => item.msg || "Invalid field")
+              .join(". ");
+            setError(msgs || "Validation error");
+          } else if (detail && typeof detail === "object") {
+            setError(JSON.stringify(detail));
+          } else {
+            setError(
+              `Registration failed (Server status: ${error.response.status})`,
+            );
+          }
+        }
       } else {
         setError("Unable to create your account.");
       }
@@ -177,7 +184,7 @@ export default function Register() {
                       setFullName(event.target.value)
                     }
                     placeholder="Your name"
-                    className="h-13 w-full rounded-2xl border border-white/10 bg-black/20 pl-11 pr-4 text-sm outline-none transition-all placeholder:text-white/20 focus:border-indigo-400/50 focus:ring-4 focus:ring-indigo-500/10"
+                    className="h-[52px] w-full rounded-2xl border border-white/10 bg-black/20 pl-11 pr-4 text-sm outline-none transition-all placeholder:text-white/20 focus:border-indigo-400/50 focus:ring-4 focus:ring-indigo-500/10"
                   />
 
                 </div>
@@ -207,7 +214,7 @@ export default function Register() {
                       setEmail(event.target.value)
                     }
                     placeholder="you@example.com"
-                    className="h-13 w-full rounded-2xl border border-white/10 bg-black/20 pl-11 pr-4 text-sm outline-none transition-all placeholder:text-white/20 focus:border-indigo-400/50 focus:ring-4 focus:ring-indigo-500/10"
+                    className="h-[52px] w-full rounded-2xl border border-white/10 bg-black/20 pl-11 pr-4 text-sm outline-none transition-all placeholder:text-white/20 focus:border-indigo-400/50 focus:ring-4 focus:ring-indigo-500/10"
                   />
 
                 </div>
@@ -242,7 +249,7 @@ export default function Register() {
                       setPassword(event.target.value)
                     }
                     placeholder="Minimum 8 characters"
-                    className="h-13 w-full rounded-2xl border border-white/10 bg-black/20 pl-11 pr-12 text-sm outline-none transition-all placeholder:text-white/20 focus:border-indigo-400/50 focus:ring-4 focus:ring-indigo-500/10"
+                    className="h-[52px] w-full rounded-2xl border border-white/10 bg-black/20 pl-11 pr-12 text-sm outline-none transition-all placeholder:text-white/20 focus:border-indigo-400/50 focus:ring-4 focus:ring-indigo-500/10"
                   />
 
                   <button
@@ -278,7 +285,7 @@ export default function Register() {
               <button
                 type="submit"
                 disabled={loading}
-                className="group flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 font-semibold shadow-xl shadow-indigo-500/20 transition-all duration-300 hover:scale-[1.01] hover:shadow-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                className="group flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 font-semibold shadow-xl shadow-indigo-500/20 transition-all duration-300 hover:scale-[1.01] hover:shadow-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading
                   ? "Creating account..."

@@ -204,9 +204,9 @@ export default function ProjectTasks({
 
 
   useEffect(() => {
-
-    loadTasks();
-
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     workspaceId,
     projectId,
