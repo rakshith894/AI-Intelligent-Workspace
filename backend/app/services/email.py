@@ -92,10 +92,13 @@ def _send_email_smtp(
     body_text: str,
 ):
     """
-    Main dispatcher: tries Resend first, falls back to Gmail SMTP.
+    Main dispatcher: Tries Gmail SMTP first (allows sending to any recipient email),
+    falls back to Resend API if SMTP is not configured.
     """
-    if not _send_via_resend(to_email, subject, body_html, body_text):
-        _send_via_smtp(to_email, subject, body_html, body_text)
+    if settings.smtp_user and settings.smtp_password:
+        if _send_via_smtp(to_email, subject, body_html, body_text):
+            return
+    _send_via_resend(to_email, subject, body_html, body_text)
 
 
 def send_email_background(

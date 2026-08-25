@@ -116,6 +116,33 @@ export async function inviteToWorkspace(
 }
 
 /* ============================================================
+   GET PENDING INVITATIONS
+============================================================ */
+
+export async function getPendingInvitations(
+  workspaceId: string,
+): Promise<InvitationResponse[]> {
+  const response = await api.get<InvitationResponse[]>(
+    `/api/v1/workspaces/${workspaceId}/invitations`,
+  );
+
+  return response.data;
+}
+
+/* ============================================================
+   REVOKE INVITATION
+============================================================ */
+
+export async function revokeInvitation(
+  workspaceId: string,
+  invitationId: string,
+): Promise<void> {
+  await api.delete(
+    `/api/v1/workspaces/${workspaceId}/invitations/${invitationId}`,
+  );
+}
+
+/* ============================================================
    ACCEPT INVITATION
 ============================================================ */
 

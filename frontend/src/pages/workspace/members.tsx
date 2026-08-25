@@ -16,6 +16,8 @@ import {
 import {
   getMyWorkspaces,
   getWorkspaceMembers,
+  getPendingInvitations,
+  revokeInvitation,
   inviteToWorkspace,
   isWorkspaceOwner,
   type Workspace,
@@ -249,11 +251,23 @@ function InviteSuccessModal({
 export default function WorkspaceMembers() {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<InvitationResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [invitationResult, setInvitationResult] =
     useState<InvitationResponse | null>(null);
+  const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+
+  async function loadPending(wsId: string) {
+    try {
+      const invs = await getPendingInvitations(wsId);
+      setPendingInvitations(Array.isArray(invs) ? invs : []);
+    } catch {
+      // quiet catch if user is not owner/admin
+    }
+  }
 
   useEffect(() => {
     async function loadMembers() {
@@ -273,9 +287,10 @@ export default function WorkspaceMembers() {
         const currentWorkspace = workspaces[0];
         setWorkspace(currentWorkspace);
 
-        const workspaceMembers = await getWorkspaceMembers(
-          currentWorkspace.id,
-        );
+        const [workspaceMembers] = await Promise.all([
+          getWorkspaceMembers(currentWorkspace.id),
+          loadPending(currentWorkspace.id),
+        ]);
 
         setMembers(
           Array.isArray(workspaceMembers) ? workspaceMembers : [],
@@ -309,6 +324,26 @@ export default function WorkspaceMembers() {
 
     void loadMembers();
   }, []);
+
+  async function handleRevoke(invitationId: string) {
+    if (!workspace || revokingId) return;
+    try {
+      setRevokingId(invitationId);
+      await revokeInvitation(workspace.id, invitationId);
+      setPendingInvitations((prev) => prev.filter((i) => i.id !== invitationId));
+    } catch (err) {
+      console.error("Failed to revoke invitation:", err);
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
+  function handleCopyToken(inv: InvitationResponse) {
+    void navigator.clipboard.writeText(inv.token).then(() => {
+      setCopiedTokenId(inv.id);
+      setTimeout(() => setCopiedTokenId(null), 2000);
+    });
+  }
 
   if (loading) {
     return (
@@ -387,16 +422,23 @@ export default function WorkspaceMembers() {
               </div>
             </div>
 
-            {/* INVITE BUTTON — only for owner/admin */}
+            {/* INVITE BUTTON & BADGE — only for owner/admin */}
             {canInvite && (
-              <button
-                type="button"
-                onClick={() => setInviteModalOpen(true)}
-                className="flex shrink-0 items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-indigo-500/20 transition hover:scale-[1.02]"
-              >
-                <Plus size={17} />
-                Invite Member
-              </button>
+              <div className="flex items-center gap-3">
+                {pendingInvitations.length > 0 && (
+                  <span className="rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-300">
+                    {pendingInvitations.length} Pending Invite{pendingInvitations.length > 1 ? "s" : ""}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setInviteModalOpen(true)}
+                  className="flex shrink-0 items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-indigo-500/20 transition hover:scale-[1.02]"
+                >
+                  <Plus size={17} />
+                  Invite Member
+                </button>
+              </div>
             )}
           </div>
         </section>
@@ -429,6 +471,66 @@ export default function WorkspaceMembers() {
             </div>
           </div>
         </section>
+
+        {/* PENDING INVITATIONS CARD (visible when pending invites exist) */}
+        {canInvite && pendingInvitations.length > 0 && (
+          <section className="rounded-[28px] border border-indigo-400/20 bg-indigo-500/[0.04] p-6 backdrop-blur-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Mail size={18} className="text-indigo-300" />
+                <h2 className="text-base font-semibold text-indigo-200">
+                  Pending Invitations ({pendingInvitations.length})
+                </h2>
+              </div>
+              <span className="text-xs text-white/40">
+                Awaiting acceptance by invited members
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {pendingInvitations.map((inv) => (
+                <div
+                  key={inv.id}
+                  className="flex flex-col gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-white">
+                      {inv.email}
+                    </p>
+                    <p className="mt-1 text-xs text-white/35 font-mono truncate">
+                      Token: {inv.token}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleCopyToken(inv)}
+                      className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/70 hover:bg-white/[0.08] hover:text-white transition"
+                    >
+                      <Copy size={13} />
+                      <span>{copiedTokenId === inv.id ? "Copied!" : "Copy Token"}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRevoke(inv.id)}
+                      disabled={revokingId === inv.id}
+                      className="flex items-center gap-1.5 rounded-xl border border-rose-400/20 bg-rose-500/10 px-3 py-1.5 text-xs text-rose-300 hover:bg-rose-500/20 transition disabled:opacity-50"
+                    >
+                      {revokingId === inv.id ? (
+                        <Loader2 size={13} className="animate-spin" />
+                      ) : (
+                        <X size={13} />
+                      )}
+                      <span>Revoke</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ERROR */}
         {error && (
@@ -561,6 +663,7 @@ export default function WorkspaceMembers() {
           onInvited={(inv) => {
             setInviteModalOpen(false);
             setInvitationResult(inv);
+            void loadPending(workspace.id);
           }}
         />
       )}
