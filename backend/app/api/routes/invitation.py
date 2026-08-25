@@ -185,6 +185,92 @@ def revoke_workspace_invitation(
 
 from app.schemas.invitation import InvitationAcceptResponse
 from app.services.invitation import accept_invitation
+from sqlalchemy import func
+
+
+@accept_router.get(
+    "/my-pending",
+)
+def get_my_pending_invitations(
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
+    from datetime import datetime, timezone
+    from app.models.user import User
+
+    user = db.scalar(select(User).where(User.id == UUID(current_user_id)))
+    if not user:
+        return []
+
+    now = datetime.now(timezone.utc)
+    email = user.email.lower().strip()
+
+    invitations = db.execute(
+        select(WorkspaceInvitation, Workspace, User)
+        .join(Workspace, Workspace.id == WorkspaceInvitation.workspace_id)
+        .join(User, User.id == WorkspaceInvitation.created_by)
+        .where(
+            func.lower(WorkspaceInvitation.email) == email,
+            WorkspaceInvitation.accepted_at.is_(None),
+            WorkspaceInvitation.expires_at > now,
+        )
+    ).all()
+
+    return [
+        {
+            "id": str(inv.id),
+            "workspace_id": str(inv.workspace_id),
+            "workspace_name": ws.name,
+            "workspace_slug": ws.slug,
+            "inviter_name": inviter.full_name or inviter.email,
+            "email": inv.email,
+            "token": inv.token,
+            "expires_at": inv.expires_at.isoformat(),
+            "created_at": inv.created_at.isoformat(),
+        }
+        for inv, ws, inviter in invitations
+    ]
+
+
+@accept_router.get(
+    "/{token}/details",
+)
+def get_invitation_details(
+    token: str,
+    db: Session = Depends(get_db),
+):
+    from datetime import datetime, timezone
+    from app.models.user import User
+
+    now = datetime.now(timezone.utc)
+    row = db.execute(
+        select(WorkspaceInvitation, Workspace, User)
+        .join(Workspace, Workspace.id == WorkspaceInvitation.workspace_id)
+        .join(User, User.id == WorkspaceInvitation.created_by)
+        .where(WorkspaceInvitation.token == token)
+    ).first()
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invitation not found or invalid token",
+        )
+
+    inv, ws, inviter = row
+    is_expired = inv.expires_at <= now
+    is_accepted = inv.accepted_at is not None
+
+    return {
+        "id": str(inv.id),
+        "workspace_id": str(inv.workspace_id),
+        "workspace_name": ws.name,
+        "workspace_slug": ws.slug,
+        "inviter_name": inviter.full_name or inviter.email,
+        "email": inv.email,
+        "is_expired": is_expired,
+        "is_accepted": is_accepted,
+        "expires_at": inv.expires_at.isoformat(),
+    }
 
 
 @accept_router.post(

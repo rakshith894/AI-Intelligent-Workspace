@@ -29,6 +29,41 @@ def create_user(db: Session, user_data: UserRegister) -> User:
     db.commit()
     db.refresh(user)
 
+    # Check for any pending invitations for this new user's email and create in-app notifications
+    try:
+        from datetime import datetime, timezone
+        from sqlalchemy import func
+        from app.models.workspace import Workspace
+        from app.models.workspace_invitation import WorkspaceInvitation
+        from app.services.notification import create_notification
+
+        now = datetime.now(timezone.utc)
+        pending_invites = db.scalars(
+            select(WorkspaceInvitation).where(
+                func.lower(WorkspaceInvitation.email) == email,
+                WorkspaceInvitation.accepted_at.is_(None),
+                WorkspaceInvitation.expires_at > now,
+            )
+        ).all()
+
+        for inv in pending_invites:
+            ws = db.scalar(select(Workspace).where(Workspace.id == inv.workspace_id))
+            ws_name = ws.name if ws else "Workspace"
+            inviter = db.scalar(select(User).where(User.id == inv.created_by))
+            inviter_name = inviter.full_name if inviter else "A team member"
+
+            create_notification(
+                db=db,
+                user_id=str(user.id),
+                workspace_id=str(inv.workspace_id),
+                notification_type="workspace_invitation",
+                title=f"Invitation to join '{ws_name}'",
+                message=f"{inviter_name} has invited you to join workspace '{ws_name}'. Open Workspace Members to accept.",
+            )
+        db.commit()
+    except Exception as exc:
+        print(f"[AUTH REGISTER] Failed to create pending invite notification: {exc}")
+
     return user
 
 

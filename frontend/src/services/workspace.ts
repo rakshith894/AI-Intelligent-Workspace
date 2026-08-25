@@ -161,6 +161,46 @@ export interface AcceptInvitationResponse {
   role: string;
 }
 
+export interface MyPendingInvitation {
+  id: string;
+  workspace_id: string;
+  workspace_name: string;
+  workspace_slug: string;
+  inviter_name: string;
+  email: string;
+  token: string;
+  expires_at: string;
+  created_at: string;
+}
+
+export interface InvitationDetails {
+  id: string;
+  workspace_id: string;
+  workspace_name: string;
+  workspace_slug: string;
+  inviter_name: string;
+  email: string;
+  is_expired: boolean;
+  is_accepted: boolean;
+  expires_at: string;
+}
+
+export async function getMyPendingInvitations(): Promise<MyPendingInvitation[]> {
+  const response = await api.get<MyPendingInvitation[]>(
+    "/api/v1/invitations/my-pending",
+  );
+  return response.data;
+}
+
+export async function getInvitationDetails(
+  token: string,
+): Promise<InvitationDetails> {
+  const response = await api.get<InvitationDetails>(
+    `/api/v1/invitations/${token}/details`,
+  );
+  return response.data;
+}
+
 export async function acceptInvitation(
   token: string,
 ): Promise<AcceptInvitationResponse> {
@@ -170,4 +210,5 @@ export async function acceptInvitation(
 
   return response.data;
 }
+
 

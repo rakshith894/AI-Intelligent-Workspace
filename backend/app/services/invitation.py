@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -25,12 +25,12 @@ def create_invitation(
     email_data: InvitationCreate,
     created_by: str,
 ) -> WorkspaceInvitation:
-    email = str(email_data.email).lower()
+    email = str(email_data.email).lower().strip()
 
     # Check whether the user is already a member
     user = db.scalar(
         select(User).where(
-            User.email == email
+            func.lower(User.email) == email
         )
     )
 
@@ -54,7 +54,7 @@ def create_invitation(
     existing_invitation = db.scalar(
         select(WorkspaceInvitation).where(
             WorkspaceInvitation.workspace_id == workspace_id,
-            WorkspaceInvitation.email == email,
+            func.lower(WorkspaceInvitation.email) == email,
             WorkspaceInvitation.accepted_at.is_(None),
         )
     )
@@ -95,10 +95,10 @@ def create_invitation(
             user_id=str(user.id),
             workspace_id=str(workspace_id),
             notification_type="workspace_invitation",
-            title="Workspace invitation",
+            title=f"Invitation to join '{workspace_name}'",
             message=(
-                f"You have been invited to join "
-                f"workspace '{workspace_name}'"
+                f"{inviter_name} has invited you to join "
+                f"workspace '{workspace_name}'. Open Workspace Members to accept."
             ),
         )
 
@@ -154,7 +154,7 @@ def accept_invitation(
     if not user:
         raise ValueError("User not found")
 
-    if user.email.lower() != invitation.email.lower():
+    if user.email.lower().strip() != invitation.email.lower().strip():
         raise ValueError(
             "This invitation was sent to a different email address"
         )
@@ -182,20 +182,43 @@ def accept_invitation(
     db.add(membership)
     invitation.accepted_at = now
 
-    # Notify the inviter/owner that someone accepted
+    # Get workspace name
     workspace = db.scalar(
         select(Workspace).where(Workspace.id == invitation.workspace_id)
     )
     workspace_name = workspace.name if workspace else "Workspace"
     joiner_name = user.full_name or user.email
 
+    # 1. Notify the inviter / workspace owner
     create_notification(
         db=db,
         user_id=str(invitation.created_by),
         workspace_id=str(invitation.workspace_id),
         notification_type="member_joined",
         title="New member joined",
-        message=f"{joiner_name} has accepted the invitation and joined '{workspace_name}'",
+        message=f"{joiner_name} has accepted your invitation and joined '{workspace_name}'",
+    )
+
+    # 2. Notify the newly joined member
+    create_notification(
+        db=db,
+        user_id=str(user.id),
+        workspace_id=str(invitation.workspace_id),
+        notification_type="member_joined",
+        title=f"Joined {workspace_name}",
+        message=f"You are now a member of '{workspace_name}'. You can collaborate on projects and tasks.",
+    )
+
+    # 3. Mark any existing workspace_invitation notifications for this user/workspace as read
+    from app.models.notification import Notification
+    from uuid import UUID
+    db.execute(
+        update(Notification)
+        .where(
+            Notification.user_id == UUID(user_id),
+            Notification.type == "workspace_invitation",
+        )
+        .values(is_read=True)
     )
 
     db.commit()

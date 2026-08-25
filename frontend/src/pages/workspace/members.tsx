@@ -12,12 +12,18 @@ import {
   X,
   CheckCircle2,
   Trash2,
+  ExternalLink,
+  Link as LinkIcon,
+  Check,
+  UserCheck,
 } from "lucide-react";
 
 import {
   getMyWorkspaces,
   getWorkspaceMembers,
   getPendingInvitations,
+  getMyPendingInvitations,
+  acceptInvitation,
   revokeInvitation,
   removeWorkspaceMember,
   inviteToWorkspace,
@@ -25,7 +31,125 @@ import {
   type Workspace,
   type WorkspaceMember,
   type InvitationResponse,
+  type MyPendingInvitation,
 } from "../../services/workspace";
+
+/* ============================================================
+   JOIN WITH TOKEN MODAL
+============================================================ */
+
+function JoinWithTokenModal({
+  onClose,
+  onJoined,
+}: {
+  onClose: () => void;
+  onJoined: () => void;
+}) {
+  const [token, setToken] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const trimmed = token.trim();
+    if (!trimmed) {
+      setError("Please enter a valid invitation token.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError("");
+      await acceptInvitation(trimmed);
+      onJoined();
+    } catch (err: unknown) {
+      console.error(err);
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(msg || "Failed to join workspace. The token may be invalid or expired.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 backdrop-blur-md">
+      <div className="w-full max-w-md rounded-[28px] border border-white/10 bg-[#0c0d18] p-7 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10">
+              <UserCheck size={20} className="text-emerald-300" />
+            </div>
+            <h2 className="mt-5 text-2xl font-semibold">Join Workspace</h2>
+            <p className="mt-1.5 text-sm text-white/40">
+              Enter your invitation token to join a workspace.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-xl p-2 text-white/30 transition hover:bg-white/[0.06] hover:text-white disabled:opacity-50"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+          {error && (
+            <div className="rounded-2xl border border-red-400/20 bg-red-400/[0.05] px-4 py-3 text-sm text-red-300">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-white/70">
+              Invitation Token
+            </label>
+            <textarea
+              required
+              rows={3}
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="Paste your invitation token here..."
+              disabled={saving}
+              className="w-full rounded-2xl border border-white/10 bg-black/20 p-4 font-mono text-xs text-white outline-none transition placeholder:text-white/20 focus:border-indigo-400/50 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-50"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-medium transition hover:bg-white/[0.08] disabled:opacity-50"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 text-sm font-semibold shadow-xl shadow-emerald-500/20 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Joining...
+                </>
+              ) : (
+                <>
+                  <UserCheck size={16} />
+                  Join Workspace
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 
 /* ============================================================
    INVITE MODAL
@@ -255,22 +379,30 @@ export default function WorkspaceMembers() {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [pendingInvitations, setPendingInvitations] = useState<InvitationResponse[]>([]);
+  const [myPendingInvitations, setMyPendingInvitations] = useState<MyPendingInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [joinModalOpen, setJoinModalOpen] = useState(false);
   const [invitationResult, setInvitationResult] =
     useState<InvitationResponse | null>(null);
   const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [acceptingToken, setAcceptingToken] = useState<string | null>(null);
 
   async function loadPending(wsId: string) {
     try {
-      const invs = await getPendingInvitations(wsId);
+      const [invs, myInvs] = await Promise.all([
+        getPendingInvitations(wsId).catch(() => []),
+        getMyPendingInvitations().catch(() => []),
+      ]);
       setPendingInvitations(Array.isArray(invs) ? invs : []);
+      setMyPendingInvitations(Array.isArray(myInvs) ? myInvs : []);
     } catch {
-      // quiet catch if user is not owner/admin
       setPendingInvitations([]);
+      setMyPendingInvitations([]);
     }
   }
 
@@ -299,21 +431,44 @@ export default function WorkspaceMembers() {
     }
   }
 
+  async function refreshAll() {
+    try {
+      setLoading(true);
+      const workspaces = await getMyWorkspaces();
+      setAllWorkspaces(workspaces);
+      if (workspaces && workspaces.length > 0) {
+        const active = workspace ? workspaces.find((w) => w.id === workspace.id) || workspaces[0] : workspaces[0];
+        await loadWorkspaceData(active);
+      } else {
+        setWorkspace(null);
+        setMembers([]);
+        await loadPending("");
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
     async function init() {
       try {
         setLoading(true);
         setError("");
-        const workspaces = await getMyWorkspaces();
+        const [workspaces, myInvs] = await Promise.all([
+          getMyWorkspaces(),
+          getMyPendingInvitations().catch(() => []),
+        ]);
         setAllWorkspaces(workspaces);
+        setMyPendingInvitations(Array.isArray(myInvs) ? myInvs : []);
+
         if (!workspaces || workspaces.length === 0) {
           setWorkspace(null);
           setMembers([]);
-          setError("No workspace found.");
           setLoading(false);
           return;
         }
-        // Default to the first workspace; workspace switcher lets user change
         await loadWorkspaceData(workspaces[0]);
       } catch (err) {
         console.error("Failed to load workspaces:", err);
@@ -324,6 +479,19 @@ export default function WorkspaceMembers() {
     void init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleAcceptPending(inv: MyPendingInvitation) {
+    try {
+      setAcceptingToken(inv.token);
+      await acceptInvitation(inv.token);
+      setMyPendingInvitations((prev) => prev.filter((i) => i.token !== inv.token));
+      await refreshAll();
+    } catch (err) {
+      console.error("Failed to accept invitation:", err);
+    } finally {
+      setAcceptingToken(null);
+    }
+  }
 
   async function handleRevoke(invitationId: string) {
     if (!workspace || revokingId) return;
@@ -354,14 +522,22 @@ export default function WorkspaceMembers() {
     }
   }
 
-  function handleCopyToken(inv: InvitationResponse) {
+  function handleCopyToken(inv: InvitationResponse | MyPendingInvitation) {
     void navigator.clipboard.writeText(inv.token).then(() => {
       setCopiedTokenId(inv.id);
       setTimeout(() => setCopiedTokenId(null), 2000);
     });
   }
 
-  if (loading) {
+  function handleCopyLink(inv: InvitationResponse | MyPendingInvitation) {
+    const link = `${window.location.origin}/invite/${inv.token}`;
+    void navigator.clipboard.writeText(link).then(() => {
+      setCopiedLinkId(inv.id);
+      setTimeout(() => setCopiedLinkId(null), 2000);
+    });
+  }
+
+  if (loading && !workspace && myPendingInvitations.length === 0) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -374,33 +550,8 @@ export default function WorkspaceMembers() {
     );
   }
 
-  if (!workspace && error) {
-    return (
-      <div className="mx-auto max-w-[1200px] space-y-4">
-        <div className="rounded-2xl border border-red-400/20 bg-red-400/[0.05] px-5 py-4 text-sm text-red-300">
-          {error}
-        </div>
-      </div>
-    );
-  }
-
-  if (!workspace) {
-    return (
-      <div className="mx-auto max-w-[1200px]">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-8 text-center">
-          <Users size={28} className="mx-auto text-white/20" />
-          <h2 className="mt-4 text-lg font-semibold">No workspace found</h2>
-          <p className="mt-2 text-sm text-white/30">
-            Create a workspace before managing members.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const isOwner = isWorkspaceOwner(workspace.role);
-  const canInvite =
-    workspace.role === "owner" || workspace.role === "admin";
+  const isOwner = workspace ? isWorkspaceOwner(workspace.role) : false;
+  const canInvite = workspace ? workspace.role === "owner" || workspace.role === "admin" : false;
 
   return (
     <>
@@ -433,29 +584,40 @@ export default function WorkspaceMembers() {
                   Workspace Members
                 </h1>
                 <p className="mt-1 text-sm text-white/40">
-                  View and manage members in this workspace.
+                  View and manage members, send and accept invitations.
                 </p>
               </div>
             </div>
 
-            {/* INVITE BUTTON & BADGE — only for owner/admin */}
-            {canInvite && (
-              <div className="flex items-center gap-3">
-                {pendingInvitations.length > 0 && (
-                  <span className="rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-300">
-                    {pendingInvitations.length} Pending Invite{pendingInvitations.length > 1 ? "s" : ""}
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setInviteModalOpen(true)}
-                  className="flex shrink-0 items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-indigo-500/20 transition hover:scale-[1.02]"
-                >
-                  <Plus size={17} />
-                  Invite Member
-                </button>
-              </div>
-            )}
+            {/* ACTION BUTTONS */}
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setJoinModalOpen(true)}
+                className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-medium text-white transition hover:bg-white/[0.1]"
+              >
+                <UserCheck size={16} className="text-emerald-400" />
+                <span>Join with Token</span>
+              </button>
+
+              {canInvite && (
+                <>
+                  {pendingInvitations.length > 0 && (
+                    <span className="rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-300">
+                      {pendingInvitations.length} Outgoing Invite{pendingInvitations.length > 1 ? "s" : ""}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setInviteModalOpen(true)}
+                    className="flex shrink-0 items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-indigo-500/20 transition hover:scale-[1.02]"
+                  >
+                    <Plus size={17} />
+                    <span>Invite Member</span>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           {/* WORKSPACE SWITCHER — shown when user belongs to multiple workspaces */}
@@ -469,7 +631,7 @@ export default function WorkspaceMembers() {
                   onClick={() => void loadWorkspaceData(ws)}
                   className={`rounded-xl px-3 py-1.5 text-xs font-medium transition ${
                     workspace?.id === ws.id
-                      ? "bg-indigo-500/20 text-indigo-200 border border-indigo-400/30"
+                      ? "bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 font-semibold"
                       : "bg-white/[0.04] text-white/50 border border-white/10 hover:bg-white/[0.08] hover:text-white"
                   }`}
                 >
@@ -481,44 +643,138 @@ export default function WorkspaceMembers() {
           )}
         </section>
 
+        {/* ============================================================
+            RECEIVED INVITATIONS CARD (1-click Accept for the current user)
+        ============================================================ */}
+        {myPendingInvitations.length > 0 && (
+          <section className="rounded-[28px] border border-emerald-400/30 bg-emerald-500/[0.06] p-6 backdrop-blur-2xl shadow-xl shadow-emerald-500/5">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-300">
+                  <Mail size={16} />
+                </div>
+                <h2 className="text-base font-semibold text-emerald-200">
+                  Invitations Received by You ({myPendingInvitations.length})
+                </h2>
+              </div>
+              <span className="text-xs text-emerald-300/70 font-medium">
+                Click Accept to join the workspace immediately
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {myPendingInvitations.map((inv) => (
+                <div
+                  key={inv.id}
+                  className="flex flex-col gap-4 rounded-2xl border border-emerald-400/20 bg-[#0c0d18]/80 p-5 sm:flex-row sm:items-center sm:justify-between shadow-lg"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-bold text-white">
+                        {inv.workspace_name}
+                      </span>
+                      <span className="rounded-lg bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">
+                        Invited by {inv.inviter_name}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-white/40 font-mono truncate">
+                      Token: {inv.token}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleCopyToken(inv)}
+                      className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/70 hover:bg-white/[0.08] hover:text-white transition"
+                    >
+                      {copiedTokenId === inv.id ? (
+                        <>
+                          <Check size={13} className="text-emerald-400" />
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={13} />
+                          <span>Copy Token</span>
+                        </>
+                      )}
+                    </button>
+
+                    <a
+                      href={`/invite/${inv.token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/70 hover:bg-white/[0.08] hover:text-white transition"
+                    >
+                      <ExternalLink size={13} />
+                      <span>Open Page</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => void handleAcceptPending(inv)}
+                      disabled={acceptingToken === inv.token}
+                      className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-500/25 transition hover:scale-[1.02] disabled:opacity-50"
+                    >
+                      {acceptingToken === inv.token ? (
+                        <>
+                          <Loader2 size={13} className="animate-spin" />
+                          <span>Joining...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 size={14} />
+                          <span>Accept & Join</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* WORKSPACE INFO CARD */}
-        <section className="rounded-[28px] border border-white/[0.08] bg-white/[0.035] p-6 backdrop-blur-2xl">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-white/30">
-                Workspace
-              </p>
-              <h2 className="mt-2 text-xl font-semibold">{workspace.name}</h2>
-              <p className="mt-1 text-xs text-white/30">/{workspace.slug}</p>
-            </div>
+        {workspace && (
+          <section className="rounded-[28px] border border-white/[0.08] bg-white/[0.035] p-6 backdrop-blur-2xl">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-white/30">
+                  Workspace
+                </p>
+                <h2 className="mt-2 text-xl font-semibold">{workspace.name}</h2>
+                <p className="mt-1 text-xs text-white/30">/{workspace.slug}</p>
+              </div>
 
-            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2">
-              {isOwner ? (
-                <>
-                  <Crown size={16} className="text-amber-300" />
-                  <span className="text-sm text-amber-200">Owner</span>
-                </>
-              ) : (
-                <>
-                  <ShieldCheck size={16} className="text-indigo-300" />
-                  <span className="text-sm capitalize text-white/60">
-                    {workspace.role || "Member"}
-                  </span>
-                </>
-              )}
+              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2">
+                {isOwner ? (
+                  <>
+                    <Crown size={16} className="text-amber-300" />
+                    <span className="text-sm text-amber-200">Owner</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck size={16} className="text-indigo-300" />
+                    <span className="text-sm capitalize text-white/60">
+                      {workspace.role || "Member"}
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
-        {/* PENDING INVITATIONS CARD (visible when pending invites exist) */}
+        {/* PENDING INVITATIONS CARD (Outgoing Invites) */}
         {canInvite && pendingInvitations.length > 0 && (
           <section className="rounded-[28px] border border-indigo-400/20 bg-indigo-500/[0.04] p-6 backdrop-blur-2xl">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Mail size={18} className="text-indigo-300" />
                 <h2 className="text-base font-semibold text-indigo-200">
-                  Pending Invitations ({pendingInvitations.length})
+                  Outgoing Pending Invitations ({pendingInvitations.length})
                 </h2>
               </div>
               <span className="text-xs text-white/40">
@@ -541,15 +797,52 @@ export default function WorkspaceMembers() {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleCopyLink(inv)}
+                      className="flex items-center gap-1.5 rounded-xl border border-indigo-400/20 bg-indigo-500/10 px-3 py-1.5 text-xs text-indigo-300 hover:bg-indigo-500/20 transition"
+                    >
+                      {copiedLinkId === inv.id ? (
+                        <>
+                          <Check size={13} className="text-emerald-400" />
+                          <span>Link Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <LinkIcon size={13} />
+                          <span>Copy Link</span>
+                        </>
+                      )}
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => handleCopyToken(inv)}
                       className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/70 hover:bg-white/[0.08] hover:text-white transition"
                     >
-                      <Copy size={13} />
-                      <span>{copiedTokenId === inv.id ? "Copied!" : "Copy Token"}</span>
+                      {copiedTokenId === inv.id ? (
+                        <>
+                          <Check size={13} className="text-emerald-400" />
+                          <span>Token Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={13} />
+                          <span>Copy Token</span>
+                        </>
+                      )}
                     </button>
+
+                    <a
+                      href={`/invite/${inv.token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/70 hover:bg-white/[0.08] hover:text-white transition"
+                    >
+                      <ExternalLink size={13} />
+                      <span>Open Page</span>
+                    </a>
 
                     <button
                       type="button"
@@ -579,116 +872,118 @@ export default function WorkspaceMembers() {
         )}
 
         {/* MEMBERS LIST */}
-        <section className="rounded-[28px] border border-white/[0.08] bg-white/[0.035] p-6 backdrop-blur-2xl">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">Members</h2>
-              <p className="mt-1 text-sm text-white/30">
-                {members.length} member{members.length === 1 ? "" : "s"} in
-                this workspace.
-              </p>
-            </div>
-          </div>
-
-          {members.length === 0 ? (
-            <div className="flex min-h-[250px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/10">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/[0.04]">
-                <Users size={24} className="text-white/20" />
+        {workspace && (
+          <section className="rounded-[28px] border border-white/[0.08] bg-white/[0.035] p-6 backdrop-blur-2xl">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Members</h2>
+                <p className="mt-1 text-sm text-white/30">
+                  {members.length} member{members.length === 1 ? "" : "s"} in
+                  this workspace.
+                </p>
               </div>
-
-              <h3 className="mt-4 text-sm font-medium">No members found</h3>
-
-              <p className="mt-2 text-xs text-white/30">
-                {canInvite
-                  ? "Invite members to get started."
-                  : "No members are currently available."}
-              </p>
-
-              {canInvite && (
-                <button
-                  type="button"
-                  onClick={() => setInviteModalOpen(true)}
-                  className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs font-medium text-white/60 transition hover:bg-white/[0.08] hover:text-white"
-                >
-                  <Plus size={14} />
-                  Invite First Member
-                </button>
-              )}
             </div>
-          ) : (
-            <div className="space-y-3">
-              {members.map((member) => {
-                const memberIsOwner = isWorkspaceOwner(member.role);
-                const displayName =
-                  member.full_name ||
-                  member.name ||
-                  member.email ||
-                  member.user_id ||
-                  "User";
-                const initial = displayName.charAt(0).toUpperCase();
 
-                return (
-                  <div
-                    key={member.id}
-                    className="flex flex-col gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 transition hover:border-white/[0.13] hover:bg-white/[0.04] sm:flex-row sm:items-center sm:justify-between"
+            {members.length === 0 ? (
+              <div className="flex min-h-[250px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/10">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/[0.04]">
+                  <Users size={24} className="text-white/20" />
+                </div>
+
+                <h3 className="mt-4 text-sm font-medium">No members found</h3>
+
+                <p className="mt-2 text-xs text-white/30">
+                  {canInvite
+                    ? "Invite members to get started."
+                    : "No members are currently available."}
+                </p>
+
+                {canInvite && (
+                  <button
+                    type="button"
+                    onClick={() => setInviteModalOpen(true)}
+                    className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs font-medium text-white/60 transition hover:bg-white/[0.08] hover:text-white"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 text-sm font-semibold text-indigo-200 ring-1 ring-white/10">
-                        {initial}
+                    <Plus size={14} />
+                    Invite First Member
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {members.map((member) => {
+                  const memberIsOwner = isWorkspaceOwner(member.role);
+                  const displayName =
+                    member.full_name ||
+                    member.name ||
+                    member.email ||
+                    member.user_id ||
+                    "User";
+                  const initial = displayName.charAt(0).toUpperCase();
+
+                  return (
+                    <div
+                      key={member.id}
+                      className="flex flex-col gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 transition hover:border-white/[0.13] hover:bg-white/[0.04] sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 text-sm font-semibold text-indigo-200 ring-1 ring-white/10">
+                          {initial}
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-white/90">
+                            {displayName}
+                          </p>
+
+                          {member.email && displayName !== member.email && (
+                            <p className="mt-0.5 truncate text-xs text-white/30">
+                              {member.email}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-white/90">
-                          {displayName}
-                        </p>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {memberIsOwner && (
+                          <Crown size={15} className="text-amber-300" />
+                        )}
 
-                        {member.email && displayName !== member.email && (
-                          <p className="mt-0.5 truncate text-xs text-white/30">
-                            {member.email}
-                          </p>
+                        <span
+                          className={`rounded-lg border px-3 py-1.5 text-xs capitalize ${
+                            memberIsOwner
+                              ? "border-amber-400/20 bg-amber-400/[0.05] text-amber-200"
+                              : member.role === "admin"
+                                ? "border-indigo-400/20 bg-indigo-400/[0.05] text-indigo-200"
+                                : "border-white/10 bg-white/[0.04] text-white/60"
+                          }`}
+                        >
+                          {member.role || "member"}
+                        </span>
+
+                        {canInvite && !memberIsOwner && (
+                          <button
+                            type="button"
+                            onClick={() => void handleRemoveMember(member)}
+                            disabled={removingMemberId === (member.user_id || member.id)}
+                            className="flex items-center gap-1.5 rounded-xl border border-rose-400/20 bg-rose-500/10 px-3.5 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
+                          >
+                            {removingMemberId === (member.user_id || member.id) ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={13} />
+                            )}
+                            <span>Remove</span>
+                          </button>
                         )}
                       </div>
                     </div>
-
-                    <div className="flex shrink-0 items-center gap-2">
-                      {memberIsOwner && (
-                        <Crown size={15} className="text-amber-300" />
-                      )}
-
-                      <span
-                        className={`rounded-lg border px-3 py-1.5 text-xs capitalize ${
-                          memberIsOwner
-                            ? "border-amber-400/20 bg-amber-400/[0.05] text-amber-200"
-                            : member.role === "admin"
-                              ? "border-indigo-400/20 bg-indigo-400/[0.05] text-indigo-200"
-                              : "border-white/10 bg-white/[0.04] text-white/60"
-                        }`}
-                      >
-                        {member.role || "member"}
-                      </span>
-
-                      {canInvite && !memberIsOwner && (
-                        <button
-                          type="button"
-                          onClick={() => void handleRemoveMember(member)}
-                          disabled={removingMemberId === (member.user_id || member.id)}
-                          className="flex items-center gap-1.5 rounded-xl border border-rose-400/20 bg-rose-500/10 px-3.5 py-1.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
-                        >
-                          {removingMemberId === (member.user_id || member.id) ? (
-                            <Loader2 size={13} className="animate-spin" />
-                          ) : (
-                            <Trash2 size={13} />
-                          )}
-                          <span>Remove</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* OWNER SECTION */}
         {isOwner && (
@@ -709,6 +1004,17 @@ export default function WorkspaceMembers() {
           </section>
         )}
       </div>
+
+      {/* JOIN WITH TOKEN MODAL */}
+      {joinModalOpen && (
+        <JoinWithTokenModal
+          onClose={() => setJoinModalOpen(false)}
+          onJoined={() => {
+            setJoinModalOpen(false);
+            void refreshAll();
+          }}
+        />
+      )}
 
       {/* INVITE MODAL */}
       {inviteModalOpen && workspace && (

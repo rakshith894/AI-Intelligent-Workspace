@@ -64,10 +64,15 @@ def _send_via_smtp(
         return False
 
     try:
+        from email.utils import formatdate, make_msgid
+
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = f"{settings.app_name} <{settings.smtp_user}>"
         msg["To"] = to_email
+        msg["Reply-To"] = settings.smtp_user
+        msg["Date"] = formatdate(localtime=True)
+        msg["Message-ID"] = make_msgid(domain="gmail.com")
 
         msg.attach(MIMEText(body_text, "plain"))
         msg.attach(MIMEText(body_html, "html"))
