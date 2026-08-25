@@ -118,10 +118,14 @@ def list_workspace_invitations(
             detail="Only owners and admins can view pending invitations",
         )
 
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+
     invitations = db.scalars(
         select(WorkspaceInvitation).where(
             WorkspaceInvitation.workspace_id == workspace_id,
-            WorkspaceInvitation.status == "pending",
+            WorkspaceInvitation.accepted_at.is_(None),
+            WorkspaceInvitation.expires_at > now,
         )
     ).all()
 

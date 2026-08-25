@@ -136,7 +136,13 @@ def accept_invitation(
 
     now = datetime.now(timezone.utc)
 
-    if invitation.expires_at <= now:
+    # Make expires_at timezone-aware for comparison
+    expires_at = invitation.expires_at
+    if expires_at.tzinfo is None:
+        from datetime import timezone as tz
+        expires_at = expires_at.replace(tzinfo=tz.utc)
+
+    if expires_at <= now:
         raise ValueError("Invitation has expired")
 
     user = db.scalar(
@@ -161,9 +167,11 @@ def accept_invitation(
     )
 
     if existing_membership:
-        raise ValueError(
-            "You are already a member of this workspace"
-        )
+        # Already a member — mark invitation accepted and return gracefully
+        invitation.accepted_at = now
+        db.commit()
+        db.refresh(existing_membership)
+        return existing_membership
 
     membership = WorkspaceMembership(
         user_id=user.id,
@@ -172,8 +180,23 @@ def accept_invitation(
     )
 
     db.add(membership)
-
     invitation.accepted_at = now
+
+    # Notify the inviter/owner that someone accepted
+    workspace = db.scalar(
+        select(Workspace).where(Workspace.id == invitation.workspace_id)
+    )
+    workspace_name = workspace.name if workspace else "Workspace"
+    joiner_name = user.full_name or user.email
+
+    create_notification(
+        db=db,
+        user_id=str(invitation.created_by),
+        workspace_id=str(invitation.workspace_id),
+        notification_type="member_joined",
+        title="New member joined",
+        message=f"{joiner_name} has accepted the invitation and joined '{workspace_name}'",
+    )
 
     db.commit()
     db.refresh(membership)

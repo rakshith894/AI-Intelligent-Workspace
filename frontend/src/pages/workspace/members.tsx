@@ -251,6 +251,7 @@ function InviteSuccessModal({
 ============================================================ */
 
 export default function WorkspaceMembers() {
+  const [allWorkspaces, setAllWorkspaces] = useState<Workspace[]>([]);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [pendingInvitations, setPendingInvitations] = useState<InvitationResponse[]>([]);
@@ -269,63 +270,59 @@ export default function WorkspaceMembers() {
       setPendingInvitations(Array.isArray(invs) ? invs : []);
     } catch {
       // quiet catch if user is not owner/admin
+      setPendingInvitations([]);
+    }
+  }
+
+  async function loadWorkspaceData(ws: Workspace) {
+    try {
+      setLoading(true);
+      setError("");
+      setWorkspace(ws);
+      const [workspaceMembers] = await Promise.all([
+        getWorkspaceMembers(ws.id),
+        loadPending(ws.id),
+      ]);
+      setMembers(Array.isArray(workspaceMembers) ? workspaceMembers : []);
+    } catch (err) {
+      console.error("Failed to load workspace members:", err);
+      const responseError = (
+        err as { response?: { status?: number; data?: { detail?: string } } }
+      )?.response;
+      if (responseError?.status === 403) {
+        setError("You do not have permission to view this workspace's members.");
+      } else {
+        setError(responseError?.data?.detail || "Unable to load workspace members.");
+      }
+    } finally {
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    async function loadMembers() {
+    async function init() {
       try {
         setLoading(true);
         setError("");
-
         const workspaces = await getMyWorkspaces();
-
+        setAllWorkspaces(workspaces);
         if (!workspaces || workspaces.length === 0) {
           setWorkspace(null);
           setMembers([]);
           setError("No workspace found.");
+          setLoading(false);
           return;
         }
-
-        const currentWorkspace = workspaces[0];
-        setWorkspace(currentWorkspace);
-
-        const [workspaceMembers] = await Promise.all([
-          getWorkspaceMembers(currentWorkspace.id),
-          loadPending(currentWorkspace.id),
-        ]);
-
-        setMembers(
-          Array.isArray(workspaceMembers) ? workspaceMembers : [],
-        );
+        // Default to the first workspace; workspace switcher lets user change
+        await loadWorkspaceData(workspaces[0]);
       } catch (err) {
-        console.error("Failed to load workspace members:", err);
-
-        const responseError = (
-          err as {
-            response?: {
-              status?: number;
-              data?: { detail?: string };
-            };
-          }
-        )?.response;
-
-        if (responseError?.status === 403) {
-          setError(
-            "You do not have permission to view this workspace's members.",
-          );
-        } else {
-          setError(
-            responseError?.data?.detail ||
-              "Unable to load workspace members.",
-          );
-        }
-      } finally {
+        console.error("Failed to load workspaces:", err);
+        setError("Unable to load workspaces.");
         setLoading(false);
       }
     }
-
-    void loadMembers();
+    void init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleRevoke(invitationId: string) {
@@ -460,7 +457,30 @@ export default function WorkspaceMembers() {
               </div>
             )}
           </div>
+
+          {/* WORKSPACE SWITCHER — shown when user belongs to multiple workspaces */}
+          {allWorkspaces.length > 1 && (
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-white/30 font-medium mr-1">Switch workspace:</span>
+              {allWorkspaces.map((ws) => (
+                <button
+                  key={ws.id}
+                  type="button"
+                  onClick={() => void loadWorkspaceData(ws)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-medium transition ${
+                    workspace?.id === ws.id
+                      ? "bg-indigo-500/20 text-indigo-200 border border-indigo-400/30"
+                      : "bg-white/[0.04] text-white/50 border border-white/10 hover:bg-white/[0.08] hover:text-white"
+                  }`}
+                >
+                  {ws.name}
+                  <span className="ml-1.5 opacity-50 capitalize">({ws.role})</span>
+                </button>
+              ))}
+            </div>
+          )}
         </section>
+
 
         {/* WORKSPACE INFO CARD */}
         <section className="rounded-[28px] border border-white/[0.08] bg-white/[0.035] p-6 backdrop-blur-2xl">

@@ -38,6 +38,12 @@ export default function AcceptInvitation() {
     } catch (err: unknown) {
       console.error(err);
       const message = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      // If already a member, still treat as success
+      if (message?.toLowerCase().includes("already a member")) {
+        setSuccess(true);
+        setRole("member");
+        return;
+      }
       setError(message || "Failed to accept workspace invitation. The link may have expired.");
     } finally {
       setLoading(false);
@@ -114,10 +120,10 @@ export default function AcceptInvitation() {
             {success ? (
               <button
                 type="button"
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/workspace/members")}
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-sm font-semibold text-white shadow-xl shadow-emerald-500/25 transition hover:scale-[1.01]"
               >
-                <span>Go to Dashboard</span>
+                <span>View Workspace Members</span>
                 <ArrowRight size={17} />
               </button>
             ) : (

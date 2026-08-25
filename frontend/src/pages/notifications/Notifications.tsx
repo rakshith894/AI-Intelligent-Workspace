@@ -56,6 +56,13 @@ function NotificationIcon({ type }: { type: string }) {
       </div>
     );
   }
+  if (type === "workspace_invitation" || type === "invitation" || type === "member_joined") {
+    return (
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-500/10">
+        <CheckCircle2 size={18} className="text-emerald-300" />
+      </div>
+    );
+  }
   return (
     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04]">
       <AlertTriangle size={18} className="text-white/40" />
@@ -92,6 +99,8 @@ export default function Notifications() {
       notification.type === "workspace_invitation" ||
       notification.type === "invitation"
     ) {
+      navigate("/workspace/members");
+    } else if (notification.type === "member_joined") {
       navigate("/workspace/members");
     } else if (notification.task_id) {
       navigate("/tasks");
@@ -361,7 +370,8 @@ export default function Notifications() {
             {notifications.map((notification) => {
               const isInvitation =
                 notification.type === "workspace_invitation" ||
-                notification.type === "invitation";
+                notification.type === "invitation" ||
+                notification.type === "member_joined";
 
               return (
                 <div
