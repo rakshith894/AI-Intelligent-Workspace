@@ -126,7 +126,7 @@ export interface TaskQueryParams {
 
 
 /* ============================================================
-   GET TASKS
+   GET TASKS (PROJECT SCOPED)
 ============================================================ */
 
 export async function getTasks(
@@ -136,6 +136,25 @@ export async function getTasks(
 ): Promise<TaskListResponse> {
   const response = await api.get<TaskListResponse>(
     `/api/v1/workspaces/${workspaceId}/projects/${projectId}/tasks`,
+    {
+      params,
+    },
+  );
+
+  return response.data;
+}
+
+
+/* ============================================================
+   GET ALL WORKSPACE TASKS (ALL PROJECTS)
+============================================================ */
+
+export async function getWorkspaceTasks(
+  workspaceId: string,
+  params?: TaskQueryParams & { project_id?: string },
+): Promise<TaskListResponse> {
+  const response = await api.get<TaskListResponse>(
+    `/api/v1/workspaces/${workspaceId}/tasks`,
     {
       params,
     },

@@ -256,7 +256,103 @@ def create_project_task(
 
 
 # ============================================================
-# LIST / SEARCH TASKS
+# LIST / SEARCH WORKSPACE TASKS (ALL PROJECTS)
+# ============================================================
+
+@router.get(
+    "/{workspace_id}/tasks",
+    response_model=TaskListResponse,
+)
+def search_workspace_tasks(
+    workspace_id: UUID,
+    project_id: UUID | None = Query(
+        default=None,
+    ),
+    search: str | None = Query(
+        default=None,
+        max_length=100,
+    ),
+    status_filter: str | None = Query(
+        default=None,
+        alias="status",
+    ),
+    priority: str | None = Query(
+        default=None,
+    ),
+    assignee_id: UUID | None = Query(
+        default=None,
+    ),
+    label_id: UUID | None = Query(
+        default=None,
+    ),
+    sort_by: str = Query(
+        default="created_at",
+    ),
+    sort_order: str = Query(
+        default="desc",
+    ),
+    page: int = Query(
+        default=1,
+        ge=1,
+    ),
+    page_size: int = Query(
+        default=50,
+        ge=1,
+        le=100,
+    ),
+    db: Session = Depends(get_db),
+    membership: WorkspaceMembership = Depends(
+        require_workspace_role(
+            "owner",
+            "admin",
+            "member",
+            "viewer",
+        )
+    ),
+):
+    tasks, total = search_tasks(
+        db=db,
+        workspace_id=str(workspace_id),
+        project_id=str(project_id) if project_id else None,
+        search=search,
+        status=status_filter,
+        priority=priority,
+        assignee_id=(
+            str(assignee_id)
+            if assignee_id is not None
+            else None
+        ),
+        label_id=(
+            str(label_id)
+            if label_id is not None
+            else None
+        ),
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        page_size=page_size,
+    )
+
+    total_pages = (
+        (total + page_size - 1) // page_size
+        if total > 0
+        else 0
+    )
+
+    return TaskListResponse(
+        items=serialize_tasks(
+            tasks,
+            db,
+        ),
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+# ============================================================
+# LIST / SEARCH TASKS BY PROJECT
 # ============================================================
 
 @router.get(
@@ -304,6 +400,7 @@ def search_project_tasks(
             "owner",
             "admin",
             "member",
+            "viewer",
         )
     ),
 ):
@@ -373,6 +470,7 @@ def get_project_task(
             "owner",
             "admin",
             "member",
+            "viewer",
         )
     ),
 ):

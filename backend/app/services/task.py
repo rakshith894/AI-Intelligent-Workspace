@@ -411,7 +411,7 @@ def validate_assignee(
 def search_tasks(
     db: Session,
     workspace_id: str,
-    project_id: str,
+    project_id: str | None = None,
     search: str | None = None,
     status: str | None = None,
     priority: str | None = None,
@@ -425,8 +425,12 @@ def search_tasks(
 
     conditions = [
         Task.workspace_id == workspace_id,
-        Task.project_id == project_id,
     ]
+
+    if project_id:
+        conditions.append(
+            Task.project_id == project_id
+        )
 
     # --------------------------------------------------------
     # SEARCH
