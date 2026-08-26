@@ -464,6 +464,74 @@ export default function ProjectDetails() {
   const [error, setError] =
     useState("");
 
+  /* ==========================================================
+     ULTRA-PREMIUM FEATURES STATE (AI BRIEF, MILESTONES, RESOURCES)
+  ========================================================== */
+  const [aiBriefModalOpen, setAiBriefModalOpen] = useState(false);
+  const [copiedBrief, setCopiedBrief] = useState(false);
+
+  // Milestones State
+  interface MilestoneItem {
+    id: string;
+    title: string;
+    target_date: string;
+    completed: boolean;
+  }
+  const [milestonesModalOpen, setMilestonesModalOpen] = useState(false);
+  const [milestones, setMilestones] = useState<MilestoneItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(`mw_milestones_${projectId}`);
+      return saved ? JSON.parse(saved) : [
+        { id: "m1", title: "Project Inception & Architecture", target_date: "2026-09-01", completed: true },
+        { id: "m2", title: "API Integration & Beta Testing", target_date: "2026-09-15", completed: false },
+        { id: "m3", title: "Production Deployment", target_date: "2026-09-30", completed: false },
+      ];
+    } catch {
+      return [];
+    }
+  });
+  const [newMilestoneTitle, setNewMilestoneTitle] = useState("");
+  const [newMilestoneDate, setNewMilestoneDate] = useState("");
+
+  // Resources State
+  interface ResourceItem {
+    id: string;
+    title: string;
+    url: string;
+    type: "figma" | "docs" | "staging" | "other";
+  }
+  const [resourcesModalOpen, setResourcesModalOpen] = useState(false);
+  const [resources, setResources] = useState<ResourceItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(`mw_resources_${projectId}`);
+      return saved ? JSON.parse(saved) : [
+        { id: "r1", title: "Figma UI Mockups", url: "https://figma.com", type: "figma" },
+        { id: "r2", title: "API Documentation", url: "https://postman.com", type: "docs" },
+      ];
+    } catch {
+      return [];
+    }
+  });
+  const [newResourceTitle, setNewResourceTitle] = useState("");
+  const [newResourceUrl, setNewResourceUrl] = useState("");
+  const newResourceType: "figma" | "docs" | "staging" | "other" = "figma";
+
+  /* Save milestones to localStorage */
+  const saveMilestonesToStorage = (updated: MilestoneItem[]) => {
+    setMilestones(updated);
+    if (projectId) {
+      localStorage.setItem(`mw_milestones_${projectId}`, JSON.stringify(updated));
+    }
+  };
+
+  /* Save resources to localStorage */
+  const saveResourcesToStorage = (updated: ResourceItem[]) => {
+    setResources(updated);
+    if (projectId) {
+      localStorage.setItem(`mw_resources_${projectId}`, JSON.stringify(updated));
+    }
+  };
+
 
   /* ==========================================================
      REQUEST VERSION
@@ -1903,6 +1971,36 @@ export default function ProjectDetails() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {/* AI BRIEF BUTTON */}
+            <button
+              type="button"
+              onClick={() => setAiBriefModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-2xl border border-indigo-400/30 bg-gradient-to-r from-indigo-500/20 to-purple-500/10 px-4 py-2.5 text-xs font-semibold text-indigo-200 transition hover:border-indigo-400/50 hover:bg-indigo-500/30"
+            >
+              <Sparkles size={14} className="text-indigo-300" />
+              <span>AI Executive Brief</span>
+            </button>
+
+            {/* MILESTONES ROADMAP BUTTON */}
+            <button
+              type="button"
+              onClick={() => setMilestonesModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs font-semibold text-white/80 transition hover:border-white/20 hover:bg-white/[0.08]"
+            >
+              <Clock3 size={14} className="text-amber-300" />
+              <span>Milestones ({milestones.filter(m => m.completed).length}/{milestones.length})</span>
+            </button>
+
+            {/* RESOURCE HUB BUTTON */}
+            <button
+              type="button"
+              onClick={() => setResourcesModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs font-semibold text-white/80 transition hover:border-white/20 hover:bg-white/[0.08]"
+            >
+              <Paperclip size={14} className="text-cyan-300" />
+              <span>Resources ({resources.length})</span>
+            </button>
+
             {/* ATTACH / EDIT URL BUTTON */}
             {!project?.project_url ? (
               <button
@@ -1932,8 +2030,52 @@ export default function ProjectDetails() {
                 <ExternalLink size={12} />
               </a>
             )}
+          </div>
+        </div>
 
-            <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
+        {/* ULTRA-PREMIUM PROJECT TELEMETRY DASHBOARD BAR */}
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 backdrop-blur-xl">
+            <div className="flex items-center justify-between text-xs text-white/40">
+              <span>Project Health Index</span>
+              <span className="font-bold text-emerald-400">
+                {totalTasks > 0 ? Math.round((tasks.filter(t => t.status === "done").length / totalTasks) * 100) : 100}%
+              </span>
+            </div>
+            <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-white/[0.06]">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-700"
+                style={{
+                  width: `${totalTasks > 0 ? Math.round((tasks.filter(t => t.status === "done").length / totalTasks) * 100) : 100}%`,
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 backdrop-blur-xl">
+            <p className="text-xs text-white/40">Completed Tasks</p>
+            <p className="mt-1 text-xl font-bold text-white">
+              {tasks.filter(t => t.status === "done").length} <span className="text-xs font-normal text-white/40">/ {totalTasks}</span>
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 backdrop-blur-xl">
+            <p className="text-xs text-white/40">In Progress / Review</p>
+            <p className="mt-1 text-xl font-bold text-indigo-300">
+              {tasks.filter(t => t.status === "in_progress" || t.status === "in_review").length}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 backdrop-blur-xl">
+            <p className="text-xs text-white/40">Milestone Progress</p>
+            <p className="mt-1 text-xl font-bold text-amber-300">
+              {milestones.filter(m => m.completed).length} <span className="text-xs font-normal text-white/40">/ {milestones.length} Met</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 flex items-center justify-between">
+          <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
               <button
                 type="button"
                 onClick={() => setActiveTab("tasks")}
@@ -1977,61 +2119,62 @@ export default function ProjectDetails() {
               </button>
             </div>
 
-            {activeTab === "tasks" && (
+            <div className="flex flex-wrap items-center gap-3">
+              {activeTab === "tasks" && (
+                <button
+                  type="button"
+                  onClick={openCreateModal}
+                  className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-3 text-sm font-semibold shadow-xl shadow-indigo-500/20 transition hover:scale-[1.02]"
+                >
+                  <Plus size={18} />
+                  New Task
+                </button>
+              )}
+
+              {/* Git Connect Button */}
               <button
                 type="button"
-                onClick={openCreateModal}
-                className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-3 text-sm font-semibold shadow-xl shadow-indigo-500/20 transition hover:scale-[1.02]"
-              >
-                <Plus size={18} />
-                New Task
-              </button>
-            )}
-
-            {/* Git Connect Button */}
-            <button
-              type="button"
-              onClick={() => {
-                setEditGitHubUrlInput(project?.github_url || "");
-                setGitHubModalOpen(true);
-              }}
-              title={
-                project?.github_url
-                  ? `GitHub Connected: ${project.github_url}`
-                  : "Connect GitHub repository to this project"
-              }
-              className={`flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-xs font-semibold transition ${
-                project?.github_url
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
-                  : "border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 hover:border-indigo-400/50"
-              }`}
-            >
-              <GitBranch size={15} />
-              <span>{project?.github_url ? "Git Connected" : "Git Connect"}</span>
-              {project?.github_url && (
-                <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              )}
-            </button>
-
-            {project?.github_url && (
-              <a
-                href={
-                  project.github_url.startsWith("http")
-                    ? project.github_url
-                    : `https://${project.github_url}`
+                onClick={() => {
+                  setEditGitHubUrlInput(project?.github_url || "");
+                  setGitHubModalOpen(true);
+                }}
+                title={
+                  project?.github_url
+                    ? `GitHub Connected: ${project.github_url}`
+                    : "Connect GitHub repository to this project"
                 }
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`Visit GitHub Repository: ${project.github_url}`}
-                className="flex items-center gap-1.5 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
+                className={`flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-xs font-semibold transition ${
+                  project?.github_url
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+                    : "border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 hover:border-indigo-400/50"
+                }`}
               >
-                <ExternalLink size={13} />
-                <span>Visit Repo</span>
-              </a>
-            )}
+                <GitBranch size={15} />
+                <span>{project?.github_url ? "Git Connected" : "Git Connect"}</span>
+                {project?.github_url && (
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                )}
+              </button>
+
+              {project?.github_url && (
+                <a
+                  href={
+                    project.github_url.startsWith("http")
+                      ? project.github_url
+                      : `https://${project.github_url}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`Visit GitHub Repository: ${project.github_url}`}
+                  className="flex items-center gap-1.5 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
+                >
+                  <ExternalLink size={13} />
+                  <span>Visit Repo</span>
+                </a>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
       {/* ERROR */}
 
@@ -3717,6 +3860,270 @@ export default function ProjectDetails() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* AI EXECUTIVE BRIEF MODAL */}
+      {aiBriefModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-md">
+          <div className="w-full max-w-2xl rounded-[32px] border border-indigo-400/30 bg-[#0c0d18] p-7 shadow-2xl backdrop-blur-2xl">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-500/20 text-indigo-300">
+                  <Sparkles size={22} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">AI Executive Project Brief</h3>
+                  <p className="text-xs text-white/40">Generated intelligence summary for {project?.name}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAiBriefModalOpen(false)}
+                className="rounded-xl p-2 text-white/40 transition hover:bg-white/10 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-6 max-h-[60vh] overflow-y-auto rounded-2xl border border-white/10 bg-black/40 p-5 font-mono text-xs leading-relaxed text-indigo-200">
+              <p className="font-bold text-white text-sm mb-2"># Executive Summary — {project?.name || "Project"}</p>
+              <p className="text-white/60 mb-4">Workspace: {workspace?.name || "Active Workspace"} | Status: {totalTasks === 0 ? "ON TRACK" : tasks.filter(t => t.status === "done").length / totalTasks >= 0.7 ? "ON TRACK" : tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== "done").length > 0 ? "AT RISK" : "NEEDS ATTENTION"}</p>
+
+              <p className="font-semibold text-indigo-300 mb-1">## Key Telemetry & Progress</p>
+              <p>• Completion Rate: {totalTasks > 0 ? Math.round((tasks.filter(t => t.status === "done").length / totalTasks) * 100) : 100}% ({tasks.filter(t => t.status === "done").length}/{totalTasks} tasks finished)</p>
+              <p>• Active Workload: {tasks.filter(t => t.status === "in_progress" || t.status === "in_review").length} tasks in active execution</p>
+              <p>• Overdue Risk: {tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== "done").length} overdue tasks requiring attention</p>
+              <p className="mb-4">• Roadmap Milestones: {milestones.filter(m => m.completed).length} of {milestones.length} milestones met</p>
+
+              <p className="font-semibold text-indigo-300 mb-1">## Key Deliverables & Links</p>
+              {project?.project_url && <p>• Live App: {project.project_url}</p>}
+              {project?.github_url && <p>• GitHub Repository: {project.github_url}</p>}
+              {resources.map((r) => (
+                <p key={r.id}>• {r.title}: {r.url}</p>
+              ))}
+
+              <p className="font-semibold text-indigo-300 mt-4 mb-1">## AI Recommendations</p>
+              <p>1. Prioritize completing active in-progress tasks to boost velocity.</p>
+              <p>2. Keep repository and live app URLs in sync after each release.</p>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const healthStatus = totalTasks === 0 ? "ON TRACK" : tasks.filter(t => t.status === "done").length / totalTasks >= 0.7 ? "ON TRACK" : tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== "done").length > 0 ? "AT RISK" : "NEEDS ATTENTION";
+                  const text = `# Executive Summary — ${project?.name}\nStatus: ${healthStatus}\nCompletion Rate: ${totalTasks > 0 ? Math.round((tasks.filter(t => t.status === "done").length / totalTasks) * 100) : 100}%\nTotal Tasks: ${totalTasks} (${tasks.filter(t => t.status === "done").length} done)\nLive App: ${project?.project_url || "N/A"}\nGitHub: ${project?.github_url || "N/A"}`;
+                  void navigator.clipboard.writeText(text);
+                  setCopiedBrief(true);
+                  setTimeout(() => setCopiedBrief(false), 2000);
+                }}
+                className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-3 text-xs font-semibold text-white shadow-xl shadow-indigo-500/20 transition hover:scale-[1.02]"
+              >
+                {copiedBrief ? <CheckCircle2 size={16} className="text-emerald-300" /> : <Copy size={16} />}
+                <span>{copiedBrief ? "Copied Brief!" : "Copy Brief to Clipboard"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PROJECT MILESTONES ROADMAP MODAL */}
+      {milestonesModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-md">
+          <div className="w-full max-w-lg rounded-[32px] border border-amber-400/30 bg-[#0c0d18] p-7 shadow-2xl backdrop-blur-2xl">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-300">
+                  <Clock3 size={22} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Project Milestones</h3>
+                  <p className="text-xs text-white/40">Track key roadmap goals and delivery dates</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMilestonesModalOpen(false)}
+                className="rounded-xl p-2 text-white/40 transition hover:bg-white/10 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* MILESTONES LIST */}
+            <div className="mt-5 space-y-2.5 max-h-[45vh] overflow-y-auto">
+              {milestones.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 transition hover:bg-white/[0.06]"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = milestones.map((item) => item.id === m.id ? { ...item, completed: !item.completed } : item);
+                      saveMilestonesToStorage(updated);
+                    }}
+                    className="flex items-center gap-3 text-left"
+                  >
+                    <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition ${m.completed ? "border-emerald-400/50 bg-emerald-500/20 text-emerald-300" : "border-white/20 bg-white/5"}`}>
+                      {m.completed && <Check size={14} />}
+                    </div>
+                    <div>
+                      <p className={`text-xs font-semibold ${m.completed ? "line-through text-white/40" : "text-white"}`}>
+                        {m.title}
+                      </p>
+                      <p className="text-[10px] text-white/35">Target Date: {m.target_date || "TBD"}</p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => saveMilestonesToStorage(milestones.filter(item => item.id !== m.id))}
+                    className="text-white/30 hover:text-red-300 p-1"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* ADD MILESTONE FORM */}
+            <div className="mt-5 pt-4 border-t border-white/10 space-y-3">
+              <input
+                type="text"
+                value={newMilestoneTitle}
+                onChange={(e) => setNewMilestoneTitle(e.target.value)}
+                placeholder="New milestone (e.g. v1.0 Production Launch)"
+                className="h-11 w-full rounded-2xl border border-white/10 bg-black/30 px-4 text-xs text-white outline-none focus:border-amber-400/50"
+              />
+              <div className="flex gap-3">
+                <input
+                  type="date"
+                  value={newMilestoneDate}
+                  onChange={(e) => setNewMilestoneDate(e.target.value)}
+                  className="h-11 flex-1 rounded-2xl border border-white/10 bg-black/30 px-4 text-xs text-white outline-none focus:border-amber-400/50"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!newMilestoneTitle.trim()) return;
+                    const item: MilestoneItem = {
+                      id: `m-${Date.now()}`,
+                      title: newMilestoneTitle.trim(),
+                      target_date: newMilestoneDate || "TBD",
+                      completed: false,
+                    };
+                    saveMilestonesToStorage([...milestones, item]);
+                    setNewMilestoneTitle("");
+                    setNewMilestoneDate("");
+                  }}
+                  className="flex items-center gap-1.5 rounded-2xl bg-amber-500/20 border border-amber-400/30 px-5 text-xs font-semibold text-amber-300 hover:bg-amber-500/30"
+                >
+                  <Plus size={15} />
+                  <span>Add Goal</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PROJECT RESOURCE HUB MODAL */}
+      {resourcesModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-md">
+          <div className="w-full max-w-lg rounded-[32px] border border-cyan-400/30 bg-[#0c0d18] p-7 shadow-2xl backdrop-blur-2xl">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-500/20 text-cyan-300">
+                  <Paperclip size={22} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Project Resource Hub</h3>
+                  <p className="text-xs text-white/40">Pin Figma links, API specs, and staging environments</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setResourcesModalOpen(false)}
+                className="rounded-xl p-2 text-white/40 transition hover:bg-white/10 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* RESOURCE LIST */}
+            <div className="mt-5 space-y-2.5 max-h-[45vh] overflow-y-auto">
+              {resources.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 transition hover:bg-white/[0.06]"
+                >
+                  <a
+                    href={r.url.startsWith("http") ? r.url : `https://${r.url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 text-left min-w-0 flex-1"
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-300 border border-cyan-400/20">
+                      <ExternalLink size={15} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-white truncate">{r.title}</p>
+                      <p className="text-[10px] text-cyan-300/60 truncate">{r.url}</p>
+                    </div>
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => saveResourcesToStorage(resources.filter(item => item.id !== r.id))}
+                    className="text-white/30 hover:text-red-300 p-1 shrink-0"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* ADD RESOURCE FORM */}
+            <div className="mt-5 pt-4 border-t border-white/10 space-y-3">
+              <input
+                type="text"
+                value={newResourceTitle}
+                onChange={(e) => setNewResourceTitle(e.target.value)}
+                placeholder="Resource Title (e.g. Figma Design System)"
+                className="h-11 w-full rounded-2xl border border-white/10 bg-black/30 px-4 text-xs text-white outline-none focus:border-cyan-400/50"
+              />
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={newResourceUrl}
+                  onChange={(e) => setNewResourceUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="h-11 flex-1 rounded-2xl border border-white/10 bg-black/30 px-4 text-xs text-white outline-none focus:border-cyan-400/50"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!newResourceTitle.trim() || !newResourceUrl.trim()) return;
+                    const item: ResourceItem = {
+                      id: `r-${Date.now()}`,
+                      title: newResourceTitle.trim(),
+                      url: newResourceUrl.trim(),
+                      type: newResourceType,
+                    };
+                    saveResourcesToStorage([...resources, item]);
+                    setNewResourceTitle("");
+                    setNewResourceUrl("");
+                  }}
+                  className="flex items-center gap-1.5 rounded-2xl bg-cyan-500/20 border border-cyan-400/30 px-5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/30"
+                >
+                  <Plus size={15} />
+                  <span>Pin Resource</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
