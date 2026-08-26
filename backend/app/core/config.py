@@ -1,6 +1,8 @@
+import json
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,7 +18,7 @@ class Settings(BaseSettings):
     secret_key: str
     access_token_expire_minutes: int = 30000000
 
-    # CORS — comma-separated origins in env var ALLOWED_ORIGINS
+    # CORS — comma-separated origins or JSON array in env var ALLOWED_ORIGINS
     allowed_origins: List[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
@@ -25,6 +27,23 @@ class Settings(BaseSettings):
         "http://127.0.0.1",
         "https://my-aii-intelligent-app.vercel.app",
     ]
+
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        if isinstance(v, str):
+            v_trimmed = v.strip()
+            if v_trimmed.startswith("[") and v_trimmed.endswith("]"):
+                try:
+                    parsed = json.loads(v_trimmed)
+                    if isinstance(parsed, list):
+                        return [str(item).strip() for item in parsed if item]
+                except Exception:
+                    pass
+            return [origin.strip() for origin in v_trimmed.split(",") if origin.strip()]
+        elif isinstance(v, list):
+            return [str(item).strip() for item in v if item]
+        return v
 
     # SMTP / Gmail Settings
     smtp_host: str = "smtp.gmail.com"
