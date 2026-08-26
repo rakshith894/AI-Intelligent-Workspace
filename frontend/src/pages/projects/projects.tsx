@@ -550,15 +550,16 @@ export default function Projects({
 
                 <div className="relative">
 
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-4">
 
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045]">
-
-                      <FolderKanban
-                        size={19}
-                        className="text-indigo-300"
-                      />
-
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-indigo-400/20 bg-indigo-500/10 text-indigo-300 shadow-md shadow-indigo-500/10">
+                        <FolderKanban size={22} />
+                      </div>
+                      <span className="inline-flex items-center gap-1 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        ON TRACK
+                      </span>
                     </div>
 
 

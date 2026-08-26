@@ -25,7 +25,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
 import { logout } from "../../services/auth";
-import { getNotifications } from "../../services/notifications";
+import { getNotifications, getUnreadNotificationCount } from "../../services/notifications";
 import { getMyWorkspaces, type Workspace } from "../../services/workspace";
 
 interface TopbarProps {
@@ -121,9 +121,13 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
       }
     }
     void loadData();
+
+    // Poll unread count using the lightweight endpoint (every 30s)
     const interval = setInterval(() => {
-      void getNotifications().then((data) => setUnreadCount(data.unread_count ?? 0)).catch(() => {});
-    }, 10000);
+      void getUnreadNotificationCount()
+        .then((data) => setUnreadCount(data.count ?? 0))
+        .catch(() => {});
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy import delete, func, select, update
@@ -226,7 +226,7 @@ def cleanup_old_notifications(
             "days must be greater than 0"
         )
 
-    cutoff_date = datetime.utcnow() - timedelta(
+    cutoff_date = datetime.now(timezone.utc) - timedelta(
         days=days
     )
 

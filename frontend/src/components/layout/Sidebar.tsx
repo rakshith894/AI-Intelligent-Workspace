@@ -19,7 +19,7 @@ import { motion } from "framer-motion";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import { getMyWorkspaces, type Workspace } from "../../services/workspace";
-import { getNotifications } from "../../services/notifications";
+import { getNotifications, getUnreadNotificationCount } from "../../services/notifications";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -83,6 +83,14 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
       }
     }
     void loadWorkspaceAndNotifications();
+
+    // Poll unread count every 30 seconds using the lightweight endpoint
+    const interval = setInterval(() => {
+      void getUnreadNotificationCount()
+        .then((data) => setUnreadNotifications(data.count ?? 0))
+        .catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   return (

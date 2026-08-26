@@ -103,16 +103,21 @@ def create_invitation(
             ),
         )
 
-    # Send Invitation Email with Token to Recipient's Gmail
-    send_invitation_email(
-        to_email=email,
-        workspace_name=workspace_name,
-        token=token,
-        inviter_name=inviter_name,
-    )
-
+    # Commit first — ensure token is persisted before sending email
     db.commit()
     db.refresh(invitation)
+
+    # Send Invitation Email with Token to Recipient's Gmail (background, non-blocking)
+    # Called AFTER commit so the token in the email is always valid
+    try:
+        send_invitation_email(
+            to_email=email,
+            workspace_name=workspace_name,
+            token=token,
+            inviter_name=inviter_name,
+        )
+    except Exception as exc:
+        print(f"[INVITATION] Email dispatch failed (non-critical): {exc}")
 
     return invitation
 

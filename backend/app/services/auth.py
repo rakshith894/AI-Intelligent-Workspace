@@ -1,3 +1,5 @@
+import secrets
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -8,6 +10,12 @@ from app.core.security import (
 )
 from app.models.user import User
 from app.schemas.auth import UserLogin, UserRegister
+
+from app.services.email import (
+    send_login_notification_email,
+    send_password_reset_email,
+    send_welcome_email,
+)
 
 
 def create_user(db: Session, user_data: UserRegister) -> User:
@@ -28,6 +36,15 @@ def create_user(db: Session, user_data: UserRegister) -> User:
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    # Send welcome email in background (non-blocking)
+    try:
+        send_welcome_email(
+            to_email=user.email,
+            full_name=user.full_name or "",
+        )
+    except Exception as exc:
+        print(f"[AUTH REGISTER] Welcome email failed (non-critical): {exc}")
 
     # Check for any pending invitations for this new user's email and create in-app notifications
     try:
@@ -91,9 +108,6 @@ def authenticate_user(
     return user
 
 
-from app.services.email import send_login_notification_email
-
-
 def login_user(
     db: Session,
     credentials: UserLogin,
@@ -103,11 +117,14 @@ def login_user(
     if not user:
         raise ValueError("Invalid email or password")
 
-    # Send login alert email to user's Gmail
-    send_login_notification_email(
-        to_email=user.email,
-        full_name=user.full_name,
-    )
+    # Send login alert email to user's Gmail (background, non-blocking)
+    try:
+        send_login_notification_email(
+            to_email=user.email,
+            full_name=user.full_name or "",
+        )
+    except Exception as exc:
+        print(f"[AUTH LOGIN] Login notification email failed (non-critical): {exc}")
 
     return create_access_token(str(user.id))
 
@@ -117,32 +134,29 @@ def request_password_reset(db: Session, email: str) -> dict:
     user = db.scalar(select(User).where(User.email == email_clean))
 
     if not user:
-        # Return success message to prevent user enumeration
+        # Return generic message to prevent user enumeration
         return {
             "message": "If an account with that email exists, a password reset code has been sent.",
-            "reset_token": "RESET-123456",
+            "reset_token": None,
         }
 
-    # Generate a demo/verification reset token
-    reset_token = f"RESET-{(abs(hash(user.id)) % 899999) + 100000}"
+    # Generate a cryptographically secure 6-digit reset token
+    reset_code = secrets.randbelow(900000) + 100000
+    reset_token = f"RESET-{reset_code}"
 
+    # Send beautiful HTML password reset email
     try:
-        from app.services.email import send_email
-        subject = "Password Reset Request — AI Intelligent Workspace"
-        body = f"""Hi {user.full_name},
-
-You requested a password reset for your AI Intelligent Workspace account ({user.email}).
-
-Your Password Reset Code is: {reset_token}
-
-If you did not request this reset, you can safely ignore this email.
-"""
-        send_email(to_email=user.email, subject=subject, body=body)
+        send_password_reset_email(
+            to_email=user.email,
+            full_name=user.full_name or "",
+            reset_token=reset_token,
+        )
+        print(f"[PASSWORD RESET] Reset email dispatched to {email_clean}")
     except Exception as exc:
         print(f"[PASSWORD RESET EMAIL WARNING] {exc}")
 
     return {
-        "message": f"Password reset instructions dispatched to {email_clean}.",
+        "message": f"Password reset code dispatched to {email_clean}. Check your inbox (and spam folder).",
         "reset_token": reset_token,
     }
 
