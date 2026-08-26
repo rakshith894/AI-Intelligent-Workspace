@@ -58,6 +58,7 @@ def create_project(
         slug=slug,
         description=data.description,
         project_url=normalize_url(data.project_url),
+        github_url=normalize_url(data.github_url),
         created_by=user_id,
     )
 
@@ -107,6 +108,9 @@ def update_project(
 
     if "project_url" in data.model_fields_set:
         project.project_url = normalize_url(data.project_url)
+
+    if "github_url" in data.model_fields_set:
+        project.github_url = normalize_url(data.github_url)
 
     db.commit()
     db.refresh(project)

@@ -35,6 +35,7 @@ def serialize_project(project):
         slug=project.slug,
         description=project.description,
         project_url=getattr(project, "project_url", None),
+        github_url=getattr(project, "github_url", None),
         created_by=str(project.created_by),
         created_at=project.created_at,
         updated_at=project.updated_at,

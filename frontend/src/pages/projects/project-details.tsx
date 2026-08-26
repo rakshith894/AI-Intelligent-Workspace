@@ -310,6 +310,15 @@ export default function ProjectDetails() {
   const [savingUrl, setSavingUrl] =
     useState(false);
 
+  const [gitHubModalOpen, setGitHubModalOpen] =
+    useState(false);
+
+  const [editGitHubUrlInput, setEditGitHubUrlInput] =
+    useState("");
+
+  const [savingGitHubUrl, setSavingGitHubUrl] =
+    useState(false);
+
 
   /* ==========================================================
      TASKS
@@ -738,6 +747,24 @@ export default function ProjectDetails() {
       alert("Failed to update project URL.");
     } finally {
       setSavingUrl(false);
+    }
+  }
+
+  async function handleUpdateGitHubUrl(newUrl: string) {
+    if (!workspace?.id || !projectId) return;
+    try {
+      setSavingGitHubUrl(true);
+      const trimmed = newUrl.trim();
+      const updated = await updateProject(workspace.id, projectId, {
+        github_url: trimmed ? trimmed : null,
+      });
+      setProject(updated);
+      setGitHubModalOpen(false);
+    } catch (err) {
+      console.error("Failed to update GitHub URL:", err);
+      alert("Failed to update GitHub repository URL.");
+    } finally {
+      setSavingGitHubUrl(false);
     }
   }
 
@@ -1799,44 +1826,80 @@ export default function ProjectDetails() {
                 "Manage tasks, priorities, labels, status and deadlines for this project."}
             </p>
 
-            {/* PROJECT URL BADGE */}
-            {project?.project_url && (
-              <div className="mt-3 flex items-center gap-2">
-                <a
-                  href={
-                    project.project_url.startsWith("http")
-                      ? project.project_url
-                      : `https://${project.project_url}`
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`Open external project URL: ${project.project_url}`}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-indigo-400/30 bg-indigo-500/10 px-3.5 py-1.5 text-xs font-semibold text-indigo-300 transition hover:border-indigo-400/50 hover:bg-indigo-500/20 hover:text-indigo-200 shadow-md shadow-indigo-500/10"
-                >
-                  <Globe size={14} className="shrink-0" />
-                  <span className="max-w-[260px] truncate">
-                    {project.project_url.replace(/^https?:\/\/(www\.)?/, "")}
-                  </span>
-                  <ExternalLink size={12} className="shrink-0 opacity-70" />
-                </a>
+            {/* PROJECT & GITHUB URL BADGES */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {project?.project_url && (
+                <div className="flex items-center gap-1">
+                  <a
+                    href={
+                      project.project_url.startsWith("http")
+                        ? project.project_url
+                        : `https://${project.project_url}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`Open live app URL: ${project.project_url}`}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-indigo-400/30 bg-indigo-500/10 px-3.5 py-1.5 text-xs font-semibold text-indigo-300 transition hover:border-indigo-400/50 hover:bg-indigo-500/20 hover:text-indigo-200 shadow-md shadow-indigo-500/10"
+                  >
+                    <Globe size={14} className="shrink-0" />
+                    <span className="max-w-[220px] truncate">
+                      {project.project_url.replace(/^https?:\/\/(www\.)?/, "")}
+                    </span>
+                    <ExternalLink size={12} className="shrink-0 opacity-70" />
+                  </a>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditUrlInput(project?.project_url || "");
-                    setProjectUrlModalOpen(true);
-                  }}
-                  title="Change or update project URL"
-                  className="rounded-xl p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white"
-                >
-                  <Pencil size={13} />
-                </button>
-              </div>
-            )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditUrlInput(project?.project_url || "");
+                      setProjectUrlModalOpen(true);
+                    }}
+                    title="Change live app URL"
+                    className="rounded-xl p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                </div>
+              )}
+
+              {project?.github_url && (
+                <div className="flex items-center gap-1">
+                  <a
+                    href={
+                      project.github_url.startsWith("http")
+                        ? project.github_url
+                        : `https://${project.github_url}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`Visit GitHub Repository: ${project.github_url}`}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-semibold text-emerald-300 transition hover:border-emerald-400/50 hover:bg-emerald-500/20 hover:text-emerald-200 shadow-md shadow-emerald-500/10"
+                  >
+                    <GitBranch size={14} className="shrink-0" />
+                    <span className="max-w-[220px] truncate">
+                      {project.github_url.replace(/^https?:\/\/(www\.)?/, "")}
+                    </span>
+                    <ExternalLink size={12} className="shrink-0 opacity-70" />
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditGitHubUrlInput(project?.github_url || "");
+                      setGitHubModalOpen(true);
+                    }}
+                    title="Change GitHub repository URL"
+                    className="rounded-xl p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {/* ATTACH / EDIT URL BUTTON (if not already set or for quick access) */}
+            {/* ATTACH / EDIT URL BUTTON */}
             {!project?.project_url ? (
               <button
                 type="button"
@@ -1847,7 +1910,7 @@ export default function ProjectDetails() {
                 className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs font-semibold text-white/80 transition hover:border-indigo-400/30 hover:bg-indigo-500/10 hover:text-indigo-300"
               >
                 <Globe size={14} />
-                <span>Add Project URL</span>
+                <span>Add Live URL</span>
               </button>
             ) : (
               <a
@@ -1861,7 +1924,7 @@ export default function ProjectDetails() {
                 className="flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2.5 text-xs font-semibold text-white shadow-xl shadow-emerald-500/20 transition hover:scale-[1.02]"
               >
                 <Globe size={14} />
-                <span>Open Project URL</span>
+                <span>Open Live URL</span>
                 <ExternalLink size={12} />
               </a>
             )}
@@ -1925,26 +1988,43 @@ export default function ProjectDetails() {
             <button
               type="button"
               onClick={() => {
-                setEditUrlInput(project?.project_url || "");
-                setProjectUrlModalOpen(true);
+                setEditGitHubUrlInput(project?.github_url || "");
+                setGitHubModalOpen(true);
               }}
               title={
-                project?.project_url
-                  ? `Git Connected: ${project.project_url}`
-                  : "Connect Git repository or URL to this project"
+                project?.github_url
+                  ? `GitHub Connected: ${project.github_url}`
+                  : "Connect GitHub repository to this project"
               }
               className={`flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-xs font-semibold transition ${
-                project?.project_url
+                project?.github_url
                   ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
                   : "border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 hover:border-indigo-400/50"
               }`}
             >
               <GitBranch size={15} />
-              <span>{project?.project_url ? "Git Connected" : "Git Connect"}</span>
-              {project?.project_url && (
+              <span>{project?.github_url ? "Git Connected" : "Git Connect"}</span>
+              {project?.github_url && (
                 <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
               )}
             </button>
+
+            {project?.github_url && (
+              <a
+                href={
+                  project.github_url.startsWith("http")
+                    ? project.github_url
+                    : `https://${project.github_url}`
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Visit GitHub Repository: ${project.github_url}`}
+                className="flex items-center gap-1.5 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
+              >
+                <ExternalLink size={13} />
+                <span>Visit Repo</span>
+              </a>
+            )}
           </div>
         </div>
       </section>
@@ -3487,7 +3567,7 @@ export default function ProjectDetails() {
         </div>
       )}
 
-      {/* PROJECT URL MODAL */}
+      {/* LIVE APP PROJECT URL MODAL */}
       {projectUrlModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 backdrop-blur-md">
           <div className="w-full max-w-md rounded-[30px] border border-white/10 bg-[#101015] p-7 shadow-2xl">
@@ -3497,10 +3577,10 @@ export default function ProjectDetails() {
                   <Globe size={20} className="text-indigo-300" />
                 </div>
                 <h2 className="mt-5 text-2xl font-semibold">
-                  {project?.project_url ? "Edit Project URL" : "Attach Project URL"}
+                  {project?.project_url ? "Edit Live App URL" : "Attach Live App URL"}
                 </h2>
                 <p className="mt-1.5 text-xs text-white/40">
-                  Link an already built web project, GitHub repository, or live deployment.
+                  Link the deployed live web application, site, or demo URL for this project.
                 </p>
               </div>
               <button
@@ -3522,7 +3602,7 @@ export default function ProjectDetails() {
             >
               <div>
                 <label className="mb-2 block text-xs font-medium text-white/70">
-                  Project URL or Repository Link
+                  Live Application URL
                 </label>
                 <div className="relative">
                   <Globe size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
@@ -3530,12 +3610,12 @@ export default function ProjectDetails() {
                     type="text"
                     value={editUrlInput}
                     onChange={(e) => setEditUrlInput(e.target.value)}
-                    placeholder="https://github.com/org/repo or https://myproject.app"
+                    placeholder="https://myproject.app or https://ai-assistant.vercel.app"
                     className="h-12 w-full rounded-2xl border border-white/10 bg-black/20 pl-11 pr-4 text-xs text-white outline-none transition placeholder:text-white/20 focus:border-indigo-400/50 focus:ring-4 focus:ring-indigo-500/10"
                   />
                 </div>
                 <p className="mt-1 text-[11px] text-white/35">
-                  Leave empty and save if you want to remove the link.
+                  Leave empty and save if you want to remove the live app link.
                 </p>
               </div>
 
@@ -3554,7 +3634,82 @@ export default function ProjectDetails() {
                   className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-3 text-xs font-semibold shadow-xl shadow-indigo-500/20 disabled:opacity-50"
                 >
                   {savingUrl && <Loader2 size={15} className="animate-spin" />}
-                  {savingUrl ? "Saving..." : "Save URL"}
+                  {savingUrl ? "Saving..." : "Save Live URL"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* GITHUB REPOSITORY MODAL */}
+      {gitHubModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-[30px] border border-white/10 bg-[#101015] p-7 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10">
+                  <GitBranch size={20} className="text-emerald-300" />
+                </div>
+                <h2 className="mt-5 text-2xl font-semibold">
+                  {project?.github_url ? "Edit GitHub Repository" : "Connect GitHub Repository"}
+                </h2>
+                <p className="mt-1.5 text-xs text-white/40">
+                  Link your GitHub repository or organization link so team members can inspect code and visit your repo.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGitHubModalOpen(false)}
+                disabled={savingGitHubUrl}
+                className="rounded-xl p-2 text-white/40 transition hover:bg-white/[0.06] hover:text-white disabled:opacity-50"
+              >
+                <X size={19} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleUpdateGitHubUrl(editGitHubUrlInput);
+              }}
+              className="mt-6 space-y-4"
+            >
+              <div>
+                <label className="mb-2 block text-xs font-medium text-white/70">
+                  GitHub Repository Link
+                </label>
+                <div className="relative">
+                  <GitBranch size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
+                  <input
+                    type="text"
+                    value={editGitHubUrlInput}
+                    onChange={(e) => setEditGitHubUrlInput(e.target.value)}
+                    placeholder="https://github.com/username/repository"
+                    className="h-12 w-full rounded-2xl border border-white/10 bg-black/20 pl-11 pr-4 text-xs text-white outline-none transition placeholder:text-white/20 focus:border-emerald-400/50 focus:ring-4 focus:ring-emerald-500/10"
+                  />
+                </div>
+                <p className="mt-1 text-[11px] text-white/35">
+                  Leave empty and save if you want to remove the GitHub repo link.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setGitHubModalOpen(false)}
+                  disabled={savingGitHubUrl}
+                  className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-medium transition hover:bg-white/[0.08] disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingGitHubUrl}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-3 text-xs font-semibold shadow-xl shadow-emerald-500/20 disabled:opacity-50"
+                >
+                  {savingGitHubUrl && <Loader2 size={15} className="animate-spin" />}
+                  {savingGitHubUrl ? "Saving..." : "Save GitHub Repo"}
                 </button>
               </div>
             </form>

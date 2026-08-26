@@ -7,12 +7,14 @@ class ProjectCreate(BaseModel):
     name: str = Field(min_length=2, max_length=150)
     description: str | None = None
     project_url: str | None = None
+    github_url: str | None = None
 
 
 class ProjectUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=150)
     description: str | None = None
     project_url: str | None = None
+    github_url: str | None = None
 
 
 class ProjectResponse(BaseModel):
@@ -22,6 +24,7 @@ class ProjectResponse(BaseModel):
     slug: str
     description: str | None
     project_url: str | None = None
+    github_url: str | None = None
     created_by: str
     created_at: datetime
     updated_at: datetime

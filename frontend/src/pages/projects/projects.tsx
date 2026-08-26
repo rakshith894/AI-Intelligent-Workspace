@@ -9,6 +9,7 @@ import {
   ExternalLink,
   FileUp,
   FolderKanban,
+  GitBranch,
   Globe,
   Loader2,
   Pencil,
@@ -613,9 +614,9 @@ export default function Projects({
                       "No project description provided."}
                   </p>
 
-                  {/* PROJECT URL */}
-                  {project.project_url ? (
-                    <div className="mt-3 flex items-center gap-2">
+                  {/* PROJECT & GITHUB URLS */}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {project.project_url && (
                       <a
                         href={
                           project.project_url.startsWith("http")
@@ -625,8 +626,8 @@ export default function Projects({
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        title={`Open ${project.project_url}`}
-                        className="inline-flex max-w-[85%] items-center gap-1.5 rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-2.5 py-1 text-xs font-medium text-indigo-300 transition hover:border-indigo-400/50 hover:bg-indigo-500/20 hover:text-indigo-200"
+                        title={`Open Live App: ${project.project_url}`}
+                        className="inline-flex max-w-[48%] items-center gap-1.5 rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-2.5 py-1 text-xs font-medium text-indigo-300 transition hover:border-indigo-400/50 hover:bg-indigo-500/20 hover:text-indigo-200"
                       >
                         <Globe size={13} className="shrink-0" />
                         <span className="truncate">
@@ -634,23 +635,29 @@ export default function Projects({
                         </span>
                         <ExternalLink size={11} className="shrink-0 opacity-70" />
                       </a>
-                    </div>
-                  ) : (
-                    <div className="mt-3">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditModal(project);
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-2.5 py-1 text-xs text-white/40 transition hover:border-indigo-400/40 hover:bg-indigo-500/10 hover:text-indigo-300"
-                        title="Click to add a URL / repository link to this project"
+                    )}
+
+                    {project.github_url && (
+                      <a
+                        href={
+                          project.github_url.startsWith("http")
+                            ? project.github_url
+                            : `https://${project.github_url}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        title={`Visit GitHub Repository: ${project.github_url}`}
+                        className="inline-flex max-w-[48%] items-center gap-1.5 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-300 transition hover:border-emerald-400/50 hover:bg-emerald-500/20 hover:text-emerald-200"
                       >
-                        <Globe size={12} className="opacity-70" />
-                        <span>+ Add Project URL</span>
-                      </button>
-                    </div>
-                  )}
+                        <GitBranch size={13} className="shrink-0" />
+                        <span className="truncate">
+                          {project.github_url.replace(/^https?:\/\/(www\.)?/, "")}
+                        </span>
+                        <ExternalLink size={11} className="shrink-0 opacity-70" />
+                      </a>
+                    )}
+                  </div>
 
                   <div className="mt-6 flex items-center justify-between border-t border-white/[0.06] pt-4">
 

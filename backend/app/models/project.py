@@ -45,6 +45,11 @@ class Project(Base):
         nullable=True,
     )
 
+    github_url: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
     created_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id"),

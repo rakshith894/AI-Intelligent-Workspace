@@ -7,6 +7,7 @@ export interface Project {
   slug: string;
   description: string | null;
   project_url: string | null;
+  github_url?: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -16,12 +17,14 @@ export interface ProjectCreate {
   name: string;
   description?: string | null;
   project_url?: string | null;
+  github_url?: string | null;
 }
 
 export interface ProjectUpdate {
   name?: string;
   description?: string | null;
   project_url?: string | null;
+  github_url?: string | null;
 }
 
 export async function getProjects(
