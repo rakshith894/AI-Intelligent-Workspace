@@ -17,7 +17,7 @@ from sqlalchemy.engine.reflection import Inspector
 # ============================================================
 
 revision: str = "f8b9c0d1e2f3"
-down_revision: Union[str, Sequence[str], None] = "e7a8b9c0d1e2"
+down_revision: Union[str, Sequence[str], None] = "a1b2c3d4e5f6"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
