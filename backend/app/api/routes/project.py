@@ -74,7 +74,7 @@ def list_workspace_projects(
     workspace_id: UUID,
     db: Session = Depends(get_db),
     membership: WorkspaceMembership = Depends(
-        require_workspace_role("owner", "admin", "member")
+        require_workspace_role("owner", "admin", "member", "viewer")
     ),
 ):
     projects = get_projects(
@@ -97,7 +97,7 @@ def get_workspace_project(
     project_id: UUID,
     db: Session = Depends(get_db),
     membership: WorkspaceMembership = Depends(
-        require_workspace_role("owner", "admin", "member")
+        require_workspace_role("owner", "admin", "member", "viewer")
     ),
 ):
     project = get_project(
@@ -125,7 +125,7 @@ def update_workspace_project(
     data: ProjectUpdate,
     db: Session = Depends(get_db),
     membership: WorkspaceMembership = Depends(
-        require_workspace_role("owner", "admin", "member")
+        require_workspace_role("owner", "admin")
     ),
 ):
     project = get_project(
@@ -158,7 +158,7 @@ def delete_workspace_project(
     project_id: UUID,
     db: Session = Depends(get_db),
     membership: WorkspaceMembership = Depends(
-        require_workspace_role("owner")
+        require_workspace_role("owner", "admin")
     ),
 ):
     project = get_project(

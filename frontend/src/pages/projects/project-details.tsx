@@ -1326,6 +1326,8 @@ export default function ProjectDetails() {
                       dueDate,
                     ).toISOString()
                   : null,
+
+              label_ids: selectedLabelIds,
             },
           );
       } else {
@@ -1351,6 +1353,8 @@ export default function ProjectDetails() {
                       dueDate,
                     ).toISOString()
                   : null,
+
+              label_ids: selectedLabelIds,
             },
           );
       }

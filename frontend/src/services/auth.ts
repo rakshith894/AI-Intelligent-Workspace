@@ -1,4 +1,3 @@
-
 import { api } from "./api";
 
 /* ============================================================
@@ -15,8 +14,16 @@ export interface LoginResponse {
   token_type: string;
 }
 
+export interface UserProfile {
+  user_id: string;
+  email: string;
+  full_name: string;
+  avatar_url?: string | null;
+  created_at?: string | null;
+}
+
 /* ============================================================
-   LOGIN
+   LOGIN & LOGOUT
 ============================================================ */
 
 export async function login(
@@ -28,6 +35,11 @@ export async function login(
   );
 
   return response.data;
+}
+
+export function logout(): void {
+  removeAccessToken();
+  window.location.href = "/login";
 }
 
 /* ============================================================
@@ -46,10 +58,6 @@ export function removeAccessToken(): void {
   localStorage.removeItem("access_token");
 }
 
-/* ============================================================
-   AUTHENTICATION CHECK
-============================================================ */
-
 export function isAuthenticated(): boolean {
   return Boolean(getAccessToken());
 }
@@ -58,25 +66,35 @@ export function isAuthenticated(): boolean {
    GET CURRENT USER PROFILE
 ============================================================ */
 
-export interface UserProfile {
-  user_id: string;
-  email: string;
-  full_name: string;
-  avatar_url?: string | null;
-  created_at?: string | null;
-}
-
 export async function getMe(): Promise<UserProfile> {
   const response = await api.get<UserProfile>("/api/v1/users/me");
   return response.data;
 }
 
 /* ============================================================
-   LOGOUT
+   PASSWORD RESET API
 ============================================================ */
 
-export function logout(): void {
-  removeAccessToken();
+export async function forgotPassword(email: string): Promise<{ message: string; reset_token?: string }> {
+  const response = await api.post<{ message: string; reset_token?: string }>(
+    "/api/v1/auth/forgot-password",
+    { email },
+  );
+  return response.data;
+}
 
-  window.location.href = "/login";
+export async function resetPassword(
+  email: string,
+  resetToken: string,
+  newPassword: string,
+): Promise<{ message: string }> {
+  const response = await api.post<{ message: string }>(
+    "/api/v1/auth/reset-password",
+    {
+      email,
+      reset_token: resetToken,
+      new_password: newPassword,
+    },
+  );
+  return response.data;
 }

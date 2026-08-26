@@ -11,6 +11,7 @@ class TaskCreate(BaseModel):
     priority: str = "medium"
     assignee_id: UUID | None = None
     due_date: datetime | None = None
+    label_ids: list[UUID] | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -24,6 +25,7 @@ class TaskUpdate(BaseModel):
     priority: str | None = None
     assignee_id: UUID | None = None
     due_date: datetime | None = None
+    label_ids: list[UUID] | None = None
 
 class TaskLabelInfo(BaseModel):
     id: str

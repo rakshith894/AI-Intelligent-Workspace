@@ -11,6 +11,9 @@ router = APIRouter(
     tags=["Authentication"],
 )
 from app.schemas.auth import (
+    ForgotPasswordRequest,
+    MessageResponse,
+    ResetPasswordRequest,
     TokenResponse,
     UserLogin,
     UserRegister,
@@ -20,7 +23,10 @@ from app.services.auth import (
     authenticate_user,
     create_user,
     login_user,
+    request_password_reset,
+    reset_password,
 )
+
 @router.post(
     "/login",
     response_model=TokenResponse,
@@ -68,3 +74,27 @@ def register(
         is_active=user.is_active,
         is_verified=user.is_verified,
     )
+
+
+@router.post("/forgot-password")
+def forgot_password_endpoint(
+    payload: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    res = request_password_reset(db, payload.email)
+    return res
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+def reset_password_endpoint(
+    payload: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+        res = reset_password(db, payload.email, payload.reset_token, payload.new_password)
+        return MessageResponse(message=res["message"])
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error

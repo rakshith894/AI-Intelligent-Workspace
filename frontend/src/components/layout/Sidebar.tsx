@@ -264,6 +264,33 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
           )}
 
           <NavLink
+            to="/team"
+            title="Team Hub & Workload"
+            className={({ isActive }) => `
+              group relative flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm transition-all
+              ${
+                isActive
+                  ? "bg-indigo-500/[0.12] text-indigo-300 font-medium"
+                  : "text-gray-400 hover:bg-white/[0.045] hover:text-white"
+              }
+              ${collapsed ? "justify-center" : ""}
+            `}
+          >
+            {({ isActive }) => (
+              <>
+                {isActive && (
+                  <motion.div
+                    layoutId="active-nav"
+                    className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-indigo-400 shadow-[0_0_12px_rgba(129,140,248,0.8)]"
+                  />
+                )}
+                <Users size={18} className={`shrink-0 ${isActive ? "text-indigo-300" : "text-gray-500 group-hover:text-gray-300"}`} />
+                {!collapsed && <span className="flex-1 text-left">Team Hub & Workload</span>}
+              </>
+            )}
+          </NavLink>
+
+          <NavLink
             to="/workspace/members"
             title="Workspace Members"
             className={({ isActive }) => `
@@ -284,7 +311,7 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
                     className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-indigo-400 shadow-[0_0_12px_rgba(129,140,248,0.8)]"
                   />
                 )}
-                <Users size={18} className={`shrink-0 ${isActive ? "text-indigo-300" : "text-gray-500 group-hover:text-gray-300"}`} />
+                <UserCog size={18} className={`shrink-0 ${isActive ? "text-indigo-300" : "text-gray-500 group-hover:text-gray-300"}`} />
                 {!collapsed && <span className="flex-1 text-left">Workspace Members</span>}
               </>
             )}

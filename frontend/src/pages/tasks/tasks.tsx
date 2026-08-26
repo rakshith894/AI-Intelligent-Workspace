@@ -35,8 +35,6 @@ import {
   getLabels,
   createLabel,
   deleteLabel,
-  attachLabel,
-  removeLabel,
   type Label,
 } from "../../services/label";
 import {
@@ -321,21 +319,12 @@ export default function Tasks() {
           priority: taskPriority,
           due_date: taskDueDate || null,
           assignee_id: taskAssignee || null,
+          label_ids: selectedLabelIds,
         });
 
-        // Sync labels
-        const currentLabels = editingTask.labels?.map((l) => l.id) || [];
-        const toAdd = selectedLabelIds.filter((id) => !currentLabels.includes(id));
-        const toRemove = currentLabels.filter((id) => !selectedLabelIds.includes(id));
-
-        await Promise.all([
-          ...toAdd.map((id) => attachLabel(workspace.id, selectedProject.id, editingTask.id, id).catch(() => null)),
-          ...toRemove.map((id) => removeLabel(workspace.id, selectedProject.id, editingTask.id, id).catch(() => null)),
-        ]);
-
-        setTasks((prev) => prev.map((t) => (t.id === updated.id ? { ...updated, labels: labels.filter((l) => selectedLabelIds.includes(l.id)) } : t)));
+        setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
         if (inspectorTask?.id === updated.id) {
-          setInspectorTask({ ...updated, labels: labels.filter((l) => selectedLabelIds.includes(l.id)) });
+          setInspectorTask(updated);
         }
       } else {
         const payload: TaskCreate = {
@@ -345,17 +334,11 @@ export default function Tasks() {
           priority: taskPriority,
           due_date: taskDueDate || undefined,
           assignee_id: taskAssignee || undefined,
+          label_ids: selectedLabelIds,
         };
         const created = await createTask(workspace.id, selectedProject.id, payload);
 
-        // Attach initial labels
-        if (selectedLabelIds.length > 0) {
-          await Promise.all(
-            selectedLabelIds.map((id) => attachLabel(workspace.id, selectedProject.id, created.id, id).catch(() => null)),
-          );
-        }
-
-        setTasks((prev) => [{ ...created, labels: labels.filter((l) => selectedLabelIds.includes(l.id)) }, ...prev]);
+        setTasks((prev) => [created, ...prev]);
       }
 
       setTaskModalOpen(false);

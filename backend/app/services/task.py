@@ -100,6 +100,11 @@ def create_task(
                 )
             )
 
+        # Attach labels if provided
+        if data.label_ids:
+            for lid in data.label_ids:
+                db.add(TaskLabel(task_id=task.id, label_id=lid))
+
         # Commit everything together
         db.commit()
         db.refresh(task)
@@ -318,6 +323,15 @@ def update_task(
                     task_title=task.title,
                 )
             )
+
+        # ----------------------------------------------------
+        # SYNC LABELS IF PROVIDED
+        # ----------------------------------------------------
+        if "label_ids" in data.model_fields_set and data.label_ids is not None:
+            # Delete existing task labels
+            db.query(TaskLabel).filter(TaskLabel.task_id == task.id).delete(synchronize_session=False)
+            for lid in data.label_ids:
+                db.add(TaskLabel(task_id=task.id, label_id=lid))
 
         # ----------------------------------------------------
         # COMMIT EVERYTHING

@@ -51,6 +51,8 @@ export interface TaskCreate {
   assignee_id?: string | null;
 
   due_date?: string | null;
+
+  label_ids?: string[] | null;
 }
 
 
@@ -70,6 +72,8 @@ export interface TaskUpdate {
   assignee_id?: string | null;
 
   due_date?: string | null;
+
+  label_ids?: string[] | null;
 }
 
 
