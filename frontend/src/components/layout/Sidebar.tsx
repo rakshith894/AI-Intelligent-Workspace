@@ -10,6 +10,7 @@ import {
   Home,
   Plus,
   Settings,
+  Shield,
   Sparkles,
   Users,
   UserCog,
@@ -46,11 +47,6 @@ const navigation = [
     label: "Analytics",
     icon: BarChart3,
     path: "/analytics",
-  },
-  {
-    label: "Team",
-    icon: Users,
-    path: "/team",
   },
   {
     label: "Notifications",
@@ -346,7 +342,7 @@ export default function Sidebar({ collapsed, onCollapse }: SidebarProps) {
                     className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-full bg-indigo-400 shadow-[0_0_12px_rgba(129,140,248,0.8)]"
                   />
                 )}
-                <UserCog size={18} className={`shrink-0 ${isActive ? "text-amber-300" : "text-gray-500 group-hover:text-gray-300"}`} />
+                <Shield size={18} className={`shrink-0 ${isActive ? "text-amber-300" : "text-gray-500 group-hover:text-gray-300"}`} />
                 {!collapsed && (
                   <>
                     <span className="flex-1 text-left">Owner Access</span>
